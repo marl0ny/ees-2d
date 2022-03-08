@@ -1,0 +1,7 @@
+.*
+!.gitignore
+/Eigen
+/Spectra
+/program*
+program*
+*.o
