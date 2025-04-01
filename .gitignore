@@ -1,7 +1,11 @@
+__pycache__
 .*
+~*
+*.pyc
+*.o
+*.gch
 !.gitignore
+*.mem
+program
 /Eigen
 /Spectra
-/program*
-program*
-*.o

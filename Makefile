@@ -1,55 +1,47 @@
 SHELL = /bin/bash
-FLAGS = -std=c++17 -O0 -Wall -g
-COMPILER = c++
-LIBS = -L/opt/homebrew/lib -L${HOME}/lib -lSDL2 -lm
-LIBS2 = -L/opt/homebrew/lib -lGL -lglew -lglfw
-INCLUDE = -I/opt/homebrew/include -I${HOME}/include -I${PWD}
-INCLUDE2 = -I/opt/homebrew/include -I${PWD}/gl_wrappers2d -I${PWD}
-SOURCES = eigenstates_1d.cpp eigenstates_2d.cpp \
-${PWD}/gl_wrappers2d/gl_wrappers.cpp
-OBJECTS = eigenstates_1d.o eigenstates_2d.o
+FLAGS = -O2 -g
+C_COMPILE = clang
+CPP_COMPILE = clang++ -std=c++17
+LINKER = /usr/bin/ld
 
-SOURCES2 = ${PWD}/gl_wrappers2d/gl_wrappers.cpp draw_view.cpp \
-init_energy_states.cpp init_potential.cpp \
-input_handling.cpp to_rgba_array.cpp main.cpp
-OBJECTS2 = gl_wrappers.o draw_view.o init_energy_states.o \
-init_potential.o input_handling.o to_rgba_array.o main.o
-HEADERS2 = complex_float_rgba.hpp draw_view.hpp init_energy_states.hpp \
-init_potential.hpp input_handling.hpp params.hpp shader_programs.hpp \
-to_rgba_array.hpp shaders.hpp
+ifeq ($(shell uname),Darwin)
+INCLUDE =  -I${PWD} -I${PWD}/gl_wrappers -I/opt/homebrew/include
+LIBS = -ldl -L/opt/homebrew/lib -lglfw\
+       -framework CoreVideo -framework OpenGL -framework IOKit\
+       -framework Cocoa -framework Carbon
+else
+INCLUDE =  -I${PWD} -I${PWD}/gl_wrappers
+LIBS = -lm -lGL -lGLEW -lglfw
+endif
 
-TARGET1 = ${PWD}/program
-TARGET2 = ${PWD}/program2
-TARGET3 = program3
-TARGET4 = main.js
+# Make sure to source <emcc_location>/emsdk/emsdk_env.sh first!
+WEB_TARGET = main.js
 
-all: ${TARGET1} ${TARGET2}
+TARGET = ${PWD}/program
+DATA_DEPENDENCIES = parameters.json
+GENERATION_SCRIPTS = make_parameter_files.py
+GENERATED_DEPENDENCIES = parameters.hpp
+C_SOURCES =
+CPP_SOURCES = main.cpp simulation.cpp interactor.cpp gl_wrappers.cpp glfw_window.cpp eigenstates2d.cpp preset_potential.cpp circles_wireframe.cpp clock_hands_wireframe.cpp levels_wireframe.cpp parse.cpp surface.cpp # user_edit_glsl.cpp
+SOURCES = ${C_SOURCES} ${CPP_SOURCES}
+OBJECTS = main.o simulation.o interactor.o gl_wrappers.o glfw_window.o eigenstates2d.o preset_potential.o circles_wireframe.o clock_hands_wireframe.o levels_wireframe.o parse.o surface.o # user_edit_glsl.o
+# SHADERS = ./shaders/*
 
-${TARGET1}: eigenstates_1d.o 
-	${COMPILER} ${FLAGS} -o $@ $^ ${LIBS}
 
-${TARGET2}: eigenstates_2d.o 
-	${COMPILER} ${FLAGS} -o $@ $^ ${LIBS}
+all: ${TARGET}
 
-${OBJECTS2}: ${SOURCES2} ${HEADERS2}
-	${COMPILER} -c ${SOURCES2} ${FLAGS} ${INCLUDE2}
+${TARGET}: ${OBJECTS}
+	${CPP_COMPILE} ${FLAGS} -o $@ ${OBJECTS} ${LIBS}
 
-${TARGET3}: ${OBJECTS2}
-	${COMPILER} ${FLAGS} -o $@ $^ ${LIBS2}
+${WEB_TARGET}: ${SOURCES} ${GENERATED_DEPENDENCIES}
+	emcc -lembind -o $@ ${SOURCES} ${INCLUDE} -std=c++17 -O3 -v -s WASM=2 -s USE_GLFW=3 -s FULL_ES3=1 \
+	-s ALLOW_MEMORY_GROWTH=1 -s LLD_REPORT_UNDEFINED --embed-file shaders
 
-${OBJECTS}: ${SOURCES}
-	${COMPILER} -c $^ ${FLAGS} ${INCLUDE}
+${OBJECTS}: ${CPP_SOURCES} ${GENERATED_DEPENDENCIES}
+	${CPP_COMPILE} ${FLAGS} -c ${CPP_SOURCES} ${INCLUDE}
 
-${OBJECTS2}: ${SOURCES2} ${HEADERS2}
-	${COMPILER} -c ${SOURCES2} ${FLAGS} ${INCLUDE2}
-
-${TARGET4}: ${SOURCES2} ${HEADERS2} shaders.hpp
-	emcc -o $@ -I${PWD}/gl_wrappers2d -I${PWD} ${SOURCES2} \
-	-std=c++17 -O3 -s WASM=1 -s USE_GLFW=3 -s FULL_ES2=1 \
-	-s ALLOW_MEMORY_GROWTH=1
-
-shaders.hpp:
-	python3 make_shaders_h.py
+${GENERATED_DEPENDENCIES}: ${DATA_DEPENDENCIES} ${GENERATION_SCRIPTS}
+	python3 make_parameter_files.py
 
 clean:
-	rm -rf ${OBJECTS} ${TARGET1} ${TARGET2} ${OBJECTS2}
+	rm -f *.o ${TARGET} *.wasm *.js

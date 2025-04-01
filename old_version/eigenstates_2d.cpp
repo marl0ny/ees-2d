@@ -40,8 +40,8 @@ using complex = std::complex<double>;
 const size_t size = 256;
 const size_t matrix_size = size*size;
 
-const int WIDTH = 512;
-const int HEIGHT = 512;
+const int VIEW_WIDTH = 512;
+const int VIEW_HEIGHT = 512;
 
 enum potential_type {
     SHO=0, ISW, CIRCLE
@@ -97,7 +97,7 @@ void complex_to_colour(struct Colour *col, complex number) {
 
 void init_energy_states(VectorXcd &eigenvalues, MatrixXcd &eigenvectors, 
                         int potential_type, int n_states) {
-    std::vector<Triplet<double>> triplets;
+    std::vector<Triplet<double> > triplets;
     triplets.reserve(size*size*5);
     double dx = 1.0/size;
     for (int i = 0; i < size; i++) {
@@ -163,7 +163,7 @@ int main() {
     }
     window = SDL_CreateWindow("Window",
                               SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                              WIDTH, HEIGHT,
+                              VIEW_WIDTH, VIEW_HEIGHT,
                               SDL_WINDOW_RESIZABLE);
     if (window == NULL) {
         fprintf(stderr, "Unable to create window: %s\n", SDL_GetError());
@@ -175,8 +175,8 @@ int main() {
         fprintf(stderr, "Unable to create renderer: %s\n", SDL_GetError());
         exit(1);
     }
-    int window_width = WIDTH;
-    int window_height = HEIGHT;
+    int window_width = VIEW_WIDTH;
+    int window_height = VIEW_HEIGHT;
     SDL_Rect background_rect = {.x = 0, .y = 0, 
                                 .w = window_width, .h = window_height};
     SDL_SetRenderDrawColor(renderer, 9, 0, 0, 255);
@@ -194,8 +194,8 @@ int main() {
         t += 0.0001;
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_GetWindowSize(window, &window_width, &window_height);
-        background_rect.w = window_width;
-        background_rect.h = window_height;
+        background_rect.w = VIEW_WIDTH;
+        background_rect.h = VIEW_HEIGHT;
         SDL_RenderFillRect(renderer, &background_rect);
         SDL_PumpEvents();
         keyboard_state = SDL_GetKeyboardState(NULL);

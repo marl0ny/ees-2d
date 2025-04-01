@@ -1,168 +1,220 @@
-#include "gl_wrappers2d/gl_wrappers.hpp"
+#include <Eigen/Core>
+#include "gl_wrappers.hpp"
+#include "glfw_window.hpp"
+#include "simulation.hpp"
+#include "interactor.hpp"
+#include "parse.hpp"
 #include <GLFW/glfw3.h>
-#include <iostream>
-#include <utility>
-#include <cmath>
-#include "shader_programs.hpp"
-#include "params.hpp"
-#include "input_handling.hpp"
-#include "init_energy_states.hpp"
-#include "init_potential.hpp"
-#include "complex_float_rgba.hpp"
-#include "to_rgba_array.hpp"
-#include "draw_view.hpp"
-#include "shaders.hpp"
+
 #ifdef __EMSCRIPTEN__
-#include <functional>
 #include <emscripten.h>
+#include <emscripten/bind.h>
 #endif
+#include <functional>
+
+#include "wasm_wrappers.hpp"
 
 
+static std::function <void()> s_loop;
 #ifdef __EMSCRIPTEN__
-std::function<void ()> loop;
-void browser_loop();
-void browser_loop() {
-    loop();
+static void s_main_loop() {
+    s_loop();
 }
 #endif
 
 
-int main() {
-    ViewParams view_params;
-    view_params.view_ratio = 512/view_params.width;
-    GLFWwindow *window = init_window(view_params.view_ratio*view_params.width, 
-                                     view_params.view_ratio*view_params.height);
-    init_glew();
-    glViewport(0, 0, view_params.width, view_params.height);
-
-    ShaderPrograms shader_programs;
-    shader_programs.init();
-
-    MouseClick left_click = MouseClick(GLFW_MOUSE_BUTTON_1);
-
-    Quad view_frame = Quad::make_frame(view_params.view_ratio*view_params.width, 
-                                       view_params.view_ratio*view_params.height);
-    Quad pot_frame = Quad::make_float_frame(view_params.width, view_params.height);
-    Quad psi_frame = Quad::make_float_frame(view_params.width, view_params.height);
-
-    SimParams sim_params;
-
-    PotentialParams potential_params;
-    potential_params.a = 20.0;
-    potential_params.spacing = 0.4;
-    int preset_potentials[4] = {
-        0, PotentialParams::SHO, 
-        PotentialParams::CIRCLE, PotentialParams::CONE
-    };
-    int n_preset_potentials = 4;
-
-    int n_states = 50;
-    int which_preset_potential = 2;
-    int which_eigenvector = 0;
-    VectorXcd eigenvalues;
-    MatrixXcd eigenvectors;
-    auto rgba_vector = std::vector<ComplexFloatRGBA>(
-        view_params.width*view_params.height);
-
-    auto select_preset_potential = [&](int potential_type) {
-        size_t matrix_size = view_params.width*view_params.height;
-        std::vector<Triplet<double>> triplets;
-        SparseMatrix<double> mat(matrix_size, matrix_size);
-        triplets.reserve(matrix_size*5);
-        potential_params.potential_type = potential_type;
-        MatrixXd potential = init_potential(potential_params,
-                                            view_params.width,
-                                            view_params.height);
-        double_matrix_to_rgba_array((ComplexFloatRGBA *)&rgba_vector[0].r, 
-                                    potential,
-                                    view_params.width, view_params.height); 
-        pot_frame.substitute_array(view_params.width, view_params.height,
-                                   GL_FLOAT, (float *)&rgba_vector[0].r);
-        init_energy_states(mat, triplets, eigenvalues, eigenvectors, n_states,
-                           potential, sim_params, 
-                           view_params.width, view_params.height);
-        vector_slice_to_rgba_array((ComplexFloatRGBA *)&rgba_vector[0].r, 
-                                   100.0, eigenvectors, which_eigenvector,
-                                   view_params.width, view_params.height);
-        psi_frame.substitute_array(view_params.width, view_params.height,
-                                GL_FLOAT, (float *)&rgba_vector[0].r);
-    };
-    select_preset_potential(preset_potentials[which_preset_potential]);
-
-    ViewFrameReads view_frame_reads;
-    view_frame_reads.frame1 = &psi_frame;
-    view_frame_reads.frame2 = &psi_frame;
-    view_frame_reads.frame3 = &psi_frame;
-    view_frame_reads.frame_potential = &pot_frame;
-
-    int left_right[2];
-    int up_down[2];
+void modify_reset_params(sim_2d::SimParams &dst, sim_2d::SimParams &mod) {
+    dst.m = mod.m;
+    dst.gridWidth = mod.gridWidth;
+    dst.gridHeight = mod.gridHeight;
+    dst.numberOfStates = mod.numberOfStates;
+}
 
 
-    #ifndef __EMSCRIPTEN__
-    auto
+void display_parameters_as_sliders(int c, std::map<std::string, double> m) {
+    std::string string_val = "[";
+    m.erase("x");
+    m.erase("y");
+    for (auto &e: m)
+        string_val += "\"" + e.first + "\", ";
+    string_val += "]";
+    string_val 
+        = "modifyUserSliders(" + std::to_string(c) + ", " + string_val + ");";
+    printf("%s\n", &string_val[0]);
+    #ifdef __EMSCRIPTEN__
+    emscripten_run_script(&string_val[0]);
     #endif
-    loop = [&] {
-        if (left_click.released) {
+}
 
-            ///
 
+void ees_2d(
+    MainGLFWQuad main_render,
+    sim_2d::SimParams &params,
+    int window_width, int window_height) {
+    Interactor interactor(main_render.get_window());
+    Simulation sim(window_width, window_height, params);
+    sim_2d::SimParams modified_params {};
+    std::map<std::string, double> all_seen_variables {};
+    Quaternion rotation = Quaternion{.i=0.0, .j=0.0, .k=0.0, .real=1.0};
+    s_sim_params_set = [&params, &modified_params](int c, Uniform u) {
+        if (c == params.GRID_WIDTH) {
+            printf("Setting grid width and/or grid height: %d, %d.\n", params.gridWidth, params.gridHeight);
+            modified_params.set(c, u);
+        } else if (c == params.GRID_HEIGHT) {
+            printf("Setting grid width and/or grid height: %d, %d.\n", params.gridWidth, params.gridHeight);
+            modified_params.set(c, u);
+        } else if (c == params.M) {
+            modified_params.set(c, u);
+        } else if (c == params.NUMBER_OF_STATES) {
+            modified_params.set(c, u);
+        } else {
+            printf("Setting parameter with code %d.\n", c);
+            printf("Parameter code is GRID_WIDTH: %d.\n", c == params.GRID_WIDTH);
+            params.set(c, u);
         }
-        if (left_right[0] != 0 && left_right[1] == 0) {
-            which_eigenvector = (which_eigenvector + left_right[0]) % n_states;
-            if (which_eigenvector < 0) {
-                which_eigenvector = n_states + which_eigenvector;
-            }
-            vector_slice_to_rgba_array((ComplexFloatRGBA *)&rgba_vector[0].r, 
-                                       100.0, eigenvectors, which_eigenvector,
-                                       view_params.width, view_params.height);
-            psi_frame.substitute_array(view_params.width, view_params.height,
-                                       GL_FLOAT, (float *)&rgba_vector[0].r);
-        }
-        if (up_down[0] != 0 && up_down[1] == 0) {
-            which_preset_potential = (which_preset_potential
-                                      + up_down[0]) % n_preset_potentials;
-            if (which_preset_potential < 0) {
-                which_preset_potential = n_preset_potentials
-                                         + which_preset_potential;
-
-            }
-            select_preset_potential(preset_potentials[
-                which_preset_potential]);
-        }
-        glViewport(0, 0, view_params.view_ratio*view_params.width, 
-                   view_params.view_ratio*view_params.height); 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        draw_view(view_frame, view_frame_reads, shader_programs.view);
-
-        glViewport(0, 0, view_params.width, view_params.height);
-
-        ///
-
-        glfwPollEvents();
-        left_right[0] = 0;
-        up_down[0] = 0;
-        button_update(window, GLFW_KEY_LEFT, left_right[0], -1);
-        button_update(window, GLFW_KEY_RIGHT, left_right[0], 1);
-        button_update(window, GLFW_KEY_UP, up_down[0], 1);
-        button_update(window, GLFW_KEY_DOWN, up_down[0], -1);
-        std::swap(left_right[0], left_right[1]);
-        std::swap(up_down[0], up_down[1]);
-        left_click.update(window);
-        glfwSwapBuffers(window);
     };
-
-    #ifndef __EMSCRIPTEN__
-    while (!glfwWindowShouldClose(window)) {
-        loop();
-    }
+    s_sim_params_get = [&params](int c) -> Uniform {
+        return params.get(c);
+    };
+    s_sim_params_set_string = [&params](
+        int c, int index, std::string val) {
+        params.set(c, index, val);
+    };
+    s_button_pressed = [&params, &modified_params, 
+        &sim, &all_seen_variables](int param_code) {
+        if (param_code == params.ENTER_SCALAR_POTENTIAL) {
+            std::string val = params.scalarPotential[0];
+            std::map<std::string, double> variables_values 
+                = sim.set_potential_from_string(params, val, 
+                all_seen_variables);
+            display_parameters_as_sliders(
+                params.SCALAR_POTENTIAL, variables_values);
+            // printf("Variable values\n");
+            // for (auto& e: variables_values)
+            //     printf("%s, %g\n", (char *)&e.first[0], e.second);
+        }
+        if (param_code == params.NORMALIZE_WAVE_FUNCTION) {
+            sim.normalize_wave_function(params);
+        }
+        if (param_code == params.SIM_RESET_BUTTON) {
+            modify_reset_params(params, modified_params);
+            sim.freeze();
+            sim.compute_new_energies(params);
+        }
+    };
+    s_sim_params_set_user_float_param = [&all_seen_variables](
+        int c, std::string var_name, float value) {
+        all_seen_variables.insert_or_assign(var_name, value);
+    };
+    s_user_edit_set_value
+        = [](int c, std::string s, float value) {
+        // 
+    };
+    s_user_edit_get_value
+        = [](int c, std::string s) -> float {
+        // auto uniforms = potential_edit.get_active_uniforms();
+        // return uniforms.operator[](s).vec2[0];
+    };
+    /* s_sim_params_set_string = [&params, &potential_edit](
+        int c, int index, std::string val) {
+        printf("%s\n", &val[0]);
+        params.set(c, index, val);
+        potential_edit.new_texts({
+            params.scalarPotential[0]});
+    };
+    s_user_edit_set_value
+        = [&potential_edit](int c, std::string s, float value) {
+        potential_edit.set_value(s, value);      
+    };
+    s_user_edit_get_value
+        = [&potential_edit](int c, std::string s) -> float {
+        auto uniforms = potential_edit.get_active_uniforms();
+        return uniforms.operator[](s).vec2[0];
+    };*/
+    std::vector<Vec2> start_position {};
+    std::vector<Vec2> curr_position {};
+    s_loop = [&] {
+        for (int i = 0; i < params.stepsPerFrame; i++)
+            sim.time_step(params);
+        if (start_position.size() > 0) {
+            Vec2 cursor_pos1 = start_position[0];
+            Vec2 cursor_pos2 = curr_position[curr_position.size() - 1];
+            // if (cursor_pos1.x < 1.0 && cursor_pos2.x < 1.0) {
+            //     cursor_pos1.x = cursor_pos1.x/(1.0/2.25);
+            //     cursor_pos2.x = cursor_pos2.x/(1.0/2.25);
+            // }
+            if (cursor_pos1.x > 1.25/2.25) {
+                cursor_pos1.x = (cursor_pos1.x - 1.25/2.25)/(1.0/2.25);
+                cursor_pos2.x = (cursor_pos2.x - 1.25/2.25)/(1.0/2.25);
+                sim.modify_stationary_state_coefficient(
+                    params, cursor_pos1, cursor_pos2);
+            } else if (cursor_pos2.x > 1.0/2.25 &&
+                cursor_pos2.x <= 1.25/1.25) {
+                cursor_pos1.x = (cursor_pos1.x - 1.0)/(0.25/2.25);
+                cursor_pos2.x = (cursor_pos2.x - 1.0)/(0.25/2.25);
+                sim.select_stationary_state_from_energy_levels(
+                    params, cursor_pos2);
+            } else if (cursor_pos1.x < 1.0 && cursor_pos2.x < 1.0) {
+                cursor_pos1.x = cursor_pos1.x/(1.0/2.25);
+                cursor_pos2.x = cursor_pos2.x/(1.0/2.25);
+                if (params.show3D) {
+                    Vec2 delta_2d = interactor.get_mouse_delta();
+                    Vec3 delta {.ind={delta_2d[0], delta_2d[1], 0.0}};
+                    Vec3 view_vec {.ind={0.0, 0.0, -1.0}};
+                    Vec3 axis = cross_product(delta, view_vec);
+                    Quaternion rot = Quaternion::rotator(
+                        3.0*axis.length(), axis);
+                    rotation = rotation*rot;
+                } else {
+                    sim.approximate_wavepacket(
+                        params, cursor_pos1, cursor_pos2);
+                }
+            }
+        }
+        main_render.draw(sim.view(params, 
+            rotation, 0.5*Interactor::get_scroll()));
+        auto poll_events = [&] {
+            glfwPollEvents();
+            interactor.click_update(main_render.get_window());
+            Vec2 pos = interactor.get_mouse_position();
+            if (pos.x > 0.0 && pos.x < 1.0 && 
+                pos.y > 0.0 && pos.y < 1.0 && interactor.left_pressed()) {
+                if (start_position.empty())
+                    start_position.push_back(pos);
+                curr_position.push_back(pos);
+            }
+            if (interactor.left_released()) {
+                if (!start_position.empty()) {
+                    start_position.pop_back();
+                    curr_position.clear();
+                }
+            }
+        };
+        poll_events();
+        glfwSwapBuffers(main_render.get_window());
+    };
+    #ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop(s_main_loop, 0, true);
     #else
-    emscripten_set_main_loop(browser_loop, 0, true);
+    while (!glfwWindowShouldClose(main_render.get_window()))
+        s_loop();
     #endif
-    glfwDestroyWindow(window);
-    glfwTerminate();
+}
 
-    return 0;
 
+int main(int argc, char *argv[]) {
+    int window_width = 2304, window_height = 1024;
+
+    // Construct the main window quad
+    if (argc >= 3) {
+        window_width = std::atoi(argv[1]);
+        window_height = std::atoi(argv[2]);
+    }
+    auto main_quad = MainGLFWQuad(window_width, window_height);
+    // UserEditGLSLProgram glsl_potential_edit {};
+    sim_2d::SimParams sim_params {};
+    ees_2d(
+        main_quad, sim_params,
+        window_width, window_height);
+    return 1;
 }
