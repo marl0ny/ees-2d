@@ -1,10 +1,13 @@
-#ifdef __EMSCRIPTEN__
-
-using namespace emscripten;
-
-#endif
-#include <functional>
 #include "gl_wrappers.hpp"
+
+#include <functional>
+#include <set>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/bind.h>
+using namespace emscripten;
+#endif
 
 static std::function<void(int, Uniform)> s_sim_params_set;
 static std::function<void(int, int, std::string)> s_sim_params_set_string;
@@ -14,8 +17,36 @@ static std::function<float(int, std::string)> s_user_edit_get_value;
 static std::function<std::string(int)>
     s_user_edit_get_comma_separated_variables;
 static std::function<void(int)> s_button_pressed;
+static std::function<void(int, int)> s_selection_set;
 static std::function<void(int, std::string, float)>
     s_sim_params_set_user_float_param;
+
+
+void edit_label_display(int c, std::string text_content) {
+    std::string string_val = "";
+    string_val += "editLabel(";
+    string_val += std::to_string(c);
+    string_val += ", ";
+    string_val += "\"" + text_content + "\"";
+    string_val += ");";
+    #ifdef __EMSCRIPTEN__
+    emscripten_run_script(&string_val[0]);
+    #endif
+}
+
+void display_parameters_as_sliders(
+    int c, std::set<std::string> variables) {
+    std::string string_val = "[";
+    for (auto &e: variables)
+        string_val += "\"" + e + "\", ";
+    string_val += "]";
+    string_val 
+        = "modifyUserSliders(" + std::to_string(c) + ", " + string_val + ");";
+    printf("%s\n", &string_val[0]);
+    #ifdef __EMSCRIPTEN__
+    emscripten_run_script(&string_val[0]);
+    #endif
+}
 
 
 /* Setters for the simulation parameters struct, where they act
@@ -31,8 +62,6 @@ the value, and lastly the value itself. The actual vector structs
 themselves are not passed as argument: this is to avoid the complexity of 
 getting non-primitive objects to be passed between JS/C++.
 */
-// 10*(1 - exp(0-((x-1)^2 + (y-1)^2)) - exp(0-((x+1)^2 + (y+1)^2)))
-// 10*(1 - exp(0-((x-1)^2 + (y-1)^2)) - exp(0-((x+1)^2 + (y+1)^2)) - exp(0-((x-1)^2 + (y+1)^2)) - exp(0-((x+1)^2 + (y-1)^2)))
 
 void set_int_param(int param_code, int i) {
     s_sim_params_set(param_code, Uniform((int)i));
@@ -98,24 +127,40 @@ void button_pressed(int param_code) {
     s_button_pressed(param_code);
 }
 
+void selection_set(int param_code, int value) {
+    s_selection_set(param_code, value);
+}
+
 // void set_mouse_mode(int type) {
 //     s_input_type = type;
 // }
 
+void start_gui(void *window) {
+}
+
+void display_gui(void *data) {
+
+}
+
+bool outside_gui() {
+    return true;
+}
+
 #ifdef __EMSCRIPTEN__
+
 EMSCRIPTEN_BINDINGS(my_module) {
-    function("set_float_param", set_float_param);
-    function("set_int_param", set_int_param);
-    function("set_bool_param", set_bool_param);
-    function("set_vec_param", set_vec_param);
-    function("set_ivec_param", set_ivec_param);
-    // function("set_mouse_mode", set_mouse_mode);
-    function("set_string_param", set_string_param);
-    function("user_edit_get_value", user_edit_get_value);
-    function("user_edit_set_value", user_edit_set_value);
-    function("user_edit_get_comma_separated_variables",
+    emscripten::function("set_float_param", set_float_param);
+    emscripten::function("set_int_param", set_int_param);
+    emscripten::function("set_bool_param", set_bool_param);
+    emscripten::function("set_vec_param", set_vec_param);
+    emscripten::function("set_ivec_param", set_ivec_param);
+    emscripten::function("set_string_param", set_string_param);
+    emscripten::function("user_edit_get_value", user_edit_get_value);
+    emscripten::function("user_edit_set_value", user_edit_set_value);
+    emscripten::function("user_edit_get_comma_separated_variables",
              user_edit_get_comma_separated_variables);
-    function("button_pressed", button_pressed);
-    function("set_user_float_param", set_user_float_param);
+    emscripten::function("button_pressed", button_pressed);
+    emscripten::function("selection_set", selection_set);
+    emscripten::function("set_user_float_param", set_user_float_param);
 }
 #endif

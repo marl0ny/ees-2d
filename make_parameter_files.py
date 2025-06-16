@@ -46,13 +46,22 @@ function createScalarParameterSlider(
     });
 };
 
-function createCheckbox(controls, enumCode, name, value) {
+gCheckboxXorLists = {};
+
+function createCheckbox(controls, enumCode, name, value, xorListName='') {
     let label = document.createElement("label");
     // label.for = spec['id']
     label.style = "color:white; font-family:Arial, Helvetica, sans-serif";
-    label.textContent = `${name}`
+    label.innerHTML = `${name}`
     let checkbox = document.createElement("input");
     checkbox.type = "checkbox";
+    checkbox.id = `checkbox-${enumCode}`;
+    if (xorListName !== '') {
+        if (!(xorListName in gCheckboxXorLists))
+            gCheckboxXorLists[xorListName] = [checkbox.id];
+        else
+            gCheckboxXorLists[xorListName].push(checkbox.id);
+    }
     // slider.style ="width: 95%;"
     // checkbox.value = value;
     checkbox.checked = value;
@@ -63,6 +72,15 @@ function createCheckbox(controls, enumCode, name, value) {
     checkbox.addEventListener("input", e => {
         console.log(e.target.checked);
         Module.set_bool_param(enumCode, e.target.checked);
+        if (e.target.checked === true && xorListName !== '') {
+            for (let id_ of gCheckboxXorLists[xorListName]) {
+                if (id_ !== checkbox.id) {
+                    let enumCode2 = parseInt(id_.split('-')[1]);
+                    Module.set_bool_param(enumCode2, false);
+                    document.getElementById(id_).checked = false;
+                }
+            }
+        }
     }
     );
 }
@@ -124,6 +142,10 @@ function createSelectionList(
         selector.add(option);
     }
     selector.value = defaultVal;
+    selector.addEventListener("change", e =>
+        Module.selection_set(
+            enumCode, Number.parseInt(e.target.value))
+    );
     controls.appendChild(selector);
     controls.appendChild(document.createElement("br"));
 }
@@ -165,7 +187,7 @@ function modifyUserSliders(enumCode, variableList) {
 }
 
 function createEntryBoxes(
-    controls, enumCode, entryBoxName, count
+    controls, enumCode, entryBoxName, count, subLabels
 ) {
     let label = document.createElement("label");
     label.style = "color:white; font-family:Arial, Helvetica, sans-serif";
@@ -181,7 +203,7 @@ function createEntryBoxes(
         entryBox.style = "width: 95%;";
         let label = document.createElement("label");
         label.style = "color:white; font-family:Arial, Helvetica, sans-serif";
-        label.textContent = `${i}`;
+        label.textContent = `${subLabels[i]}`;
         if (count >= 2) {
             controls.appendChild(label);
             controls.appendChild(document.createElement("br"));
@@ -212,7 +234,7 @@ function createButton(
 }
 
 function createLabel(
-    controls, labelName, style=''
+    controls, enumCode, labelName, style=''
 ) {
     let label = document.createElement("label");
     if (style === '')
@@ -220,8 +242,15 @@ function createLabel(
     else
         label.style = style;
     label.textContent = `${labelName}`;
+    label.id = `label-${enumCode}`;
     controls.appendChild(label);
     controls.appendChild(document.createElement("br"));
+}
+
+function editLabel(enumCode, textContent) {
+    let idVal = `label-${enumCode}`;
+    let label = document.getElementById(idVal);
+    label.textContent = textContent;
 }
 
 function createLineDivider(controls) {
@@ -236,6 +265,7 @@ def write_sliders_js(parameters, dst_file_name):
     file_contents = ""
     file_contents += SLIDER_JS_START
     file_contents += "let controls = document.getElementById('controls');\n"
+    parameters = {k: parameters[k] for k in parameters if k[0:2] != '__'}
     for i, k in enumerate(parameters.keys()):
         parameter = parameters[k]
         type_ = parameter["type"]
@@ -246,9 +276,12 @@ def write_sliders_js(parameters, dst_file_name):
         name = parameter["name"] if "name" in parameter.keys() else k
         if parameter['type'] == 'EntryBoxes':
             list_val = value.strip('{').strip('}').split(',')
+            print(parameter["subLabels"])
+            labels = parameter["subLabels"] if "subLabels" in parameter \
+                else [f"{i}" for i in range(len(list_val))]
             file_contents += \
                 f'createEntryBoxes('\
-                f'controls, {i}, \"{name}\", {len(list_val)});\n'
+                f'controls, {i}, \"{name}\", {len(list_val)}, {str(labels)});\n'
         if parameter['type'] == 'SelectionList':
             val2 = ''.join([c for c in value if (c != '}' and c != '{')])
             list_val = val2.split(',')[1:]
@@ -270,10 +303,10 @@ def write_sliders_js(parameters, dst_file_name):
         if parameter['type'] == 'Label':
             if "style" in parameter:
                 file_contents += \
-                    f'createLabel(controls, ' \
+                    f'createLabel(controls, {i}, ' \
                         + f'\"{name}\", \"{parameter["style"]}\");\n'
             else:
-                file_contents += f'createLabel(controls, \"{name}\", \"\");\n'
+                file_contents += f'createLabel(controls, {i}, \"{name}\", \"\");\n'
         if parameter['type'] == 'LineDivider':
             file_contents += f'createLineDivider(controls);\n'
         if 'min' in parameter and 'max' in parameter:
@@ -293,7 +326,10 @@ def write_sliders_js(parameters, dst_file_name):
         if parameter['type'] == 'bool':
             p = parameter['value']
             file_contents += f'createCheckbox('\
-                  + f'controls, {i}, "{name}", {"true" if p else "false"});\n'
+                  + f'controls, {i}, "{name}", {"true" if p else "false"}'\
+                  + (f', "{parameter["xorListName"]}"' if 
+                        "xorListName" in parameter else "") \
+                  + f');\n'
     file_contents += '\n'
     with open(dst_file_name, "w") as f:
         f.write(file_contents)
@@ -378,12 +414,15 @@ def write_typed_sim_parameters_hpp(parameters, name_space, dst_file_name):
     file_contents += "\n#ifndef _PARAMETERS_\n#define _PARAMETERS_\n"
     file_contents += "\nstruct Button {};\n"
     file_contents += "\ntypedef std::string Label;\n"
+    file_contents += "\ntypedef bool BoolRecord;\n"
     file_contents += "\ntypedef std::vector<std::string> EntryBoxes;\n"
     file_contents += "\nstruct SelectionList {\n"
     file_contents += "    int selected;\n"
     file_contents += "    std::vector<std::string> options;\n};\n"
     file_contents += "\nstruct SimParams {\n"
     file_contents += "\nstruct LineDivider {};\n"
+    file_contents += "\nstruct NotUsed {};\n"
+    parameters = {k: parameters[k] for k in parameters if k[0:2] != '__'}
     for k in parameters.keys():
         parameter = parameters[k]
         type_ = parameter["type"]
@@ -450,6 +489,11 @@ def write_typed_sim_parameters_hpp(parameters, name_space, dst_file_name):
                 12*" " + f"case {camel_to_snake(k, scream=True)}:\n"
             file_contents += 12*" " + f"{k}[index] = val;\n"
             file_contents += 12*" " + "break;\n"
+        elif type_ in ["Label"]:
+            file_contents += \
+                12*" " + f"case {camel_to_snake(k, scream=True)}:\n"
+            file_contents += 12*" " + f"{k} = val;\n"
+            file_contents += 12*" " + "break;\n"
     file_contents += '        }\n'
     file_contents += '    }\n'
 
@@ -457,10 +501,202 @@ def write_typed_sim_parameters_hpp(parameters, name_space, dst_file_name):
 
     with open(dst_file_name, "w") as f:
         f.write(file_contents)
+    
 
+IMGUI_CONTROLS_START = """
+#include "{}"
+
+#ifndef _IMGUI_CONTROLS_
+#define _IMGUI_CONTROLS_
+using namespace {};
+
+#include "gl_wrappers.hpp"
+
+#include "imgui/imgui.h"
+#include "imgui/backends/imgui_impl_glfw.h"
+#include "imgui/backends/imgui_impl_opengl3.h"
+
+#include <functional>
+#include <set>
+
+#include "parameters.hpp"
+
+static std::function<void(int, Uniform)> s_sim_params_set;
+static std::function<void(int, int, std::string)> s_sim_params_set_string;
+static std::function<Uniform(int)> s_sim_params_get;
+static std::function<void(int, std::string, float)> s_user_edit_set_value;
+static std::function<float(int, std::string)> s_user_edit_get_value;
+static std::function<std::string(int)>
+    s_user_edit_get_comma_separated_variables;
+static std::function<void(int)> s_button_pressed;
+static std::function<void(int, int)> s_selection_set;
+static std::function<void(int, std::string, float)>
+    s_sim_params_set_user_float_param;
+
+static ImGuiIO global_io;
+static std::map<int, std::string> global_labels;
+
+void edit_label_display(int c, std::string text_content) {{
+    global_labels[c] = text_content;
+}}
+
+void display_parameters_as_sliders(
+    int c, std::set<std::string> variables) {{
+    std::string string_val = "[";
+    for (auto &e: variables)
+        string_val += "\"" + e + "\", ";
+    string_val += "]";
+    string_val 
+        = "modifyUserSliders(" + std::to_string(c) + ", " + string_val + ");";
+    // TODO
+}}
+
+void start_gui(void *window) {{
+    bool show_controls_window = true;
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::StyleColorsClassic();
+    ImGui_ImplGlfw_InitForOpenGL((GLFWwindow *)window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+}}
+
+void imgui_controls(void *void_params) {{
+    SimParams *params = (SimParams *)void_params;
+    for (auto &e: global_labels)
+        params->set(e.first, 0, e.second);
+"""
+
+IMGUI_CONTROLS_END = """
+}
+
+bool outside_gui() {{
+    return !global_io.WantCaptureMouse;
+}}
+
+void display_gui(void *data) {{
+    global_io = ImGui::GetIO();
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    bool val = true;
+    ImGui::Begin("Controls", &val);
+    ImGui::Text("WIP AND INCOMPLETE");
+    imgui_controls(data);
+    ImGui::End();
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}}
+
+#endif
+"""
+
+IMGUI_SLIDER_FLOAT  = \
+"""    if (ImGui::SliderFloat("{}", &params->{}, {}, {}))
+           s_sim_params_set({}, {});
+"""
+
+IMGUI_SLIDER_INT  = \
+"""    if (ImGui::SliderInt("{}", &params->{}, {}, {}))
+            s_sim_params_set({}, {});
+"""
+
+IMGUI_CHECKBOX  = \
+"""    ImGui::Checkbox("{}", &params->{});
+"""
+
+IMGUI_TEXT = \
+"""    ImGui::Text("{}");
+"""
+
+IMGUI_MENU = \
+"""    if (ImGui::MenuItem({}))
+            s_selection_set({}, {});
+"""
+
+def write_imgui_controls(
+        parameters, param_namespace, param_header, dst_file_name):
+    parameters = {k: parameters[k] for k in parameters if k[0:2] != '__'}
+    file_contents = ""
+    file_contents \
+        += IMGUI_CONTROLS_START.format(param_header, param_namespace)
+    names = set()
+    for i, k in enumerate(parameters.keys()):
+        parameter = parameters[k]
+        type_ = parameter["type"]
+        value = parameter["value"]
+        try:
+            name = parameter["name"]
+        except:
+            pass
+        if name in names:
+            name += f" ({k})"
+        names.add(name)
+        if 'Vec2' == type_ or 'Vec3' == type_ or 'Vec4' == type_:
+            if "min" in parameter and "max" in parameter:
+                min_, max_ = parameter["min"], parameter["max"]
+                file_contents += IMGUI_TEXT.format(name)
+                n_elem = int(type_[-1])
+                for i in range(n_elem):
+                    file_contents += IMGUI_SLIDER_FLOAT.format(
+                        f"{k}[{i}]", k + f".ind[{i}]", min_[i], max_[i],
+                        "params->" + camel_to_snake(k, True),
+                        "params->" + k
+                    )
+        if 'float' in type_:
+            if "min" in parameter and "max" in parameter:
+                min_, max_ = parameter["min"], parameter["max"]
+                file_contents += IMGUI_SLIDER_FLOAT.format(
+                    name, k, min_, max_,
+                    "params->" + camel_to_snake(k, True),
+                    "params->" + k
+                    )
+        if 'int' in type_:
+            if "min" in parameter and "max" in parameter:
+                min_, max_ = parameter["min"], parameter["max"]
+                file_contents += IMGUI_SLIDER_INT.format(
+                    name, k, min_, max_,
+                    "params->" + camel_to_snake(k, True),
+                    "params->" + k)
+        if 'bool' in type_:
+            file_contents += IMGUI_CHECKBOX.format(name, k)
+        if 'BoolRecord' in type_:
+            file_contents += IMGUI_CHECKBOX.format(name, k)
+        if 'Label' in type_:
+            file_contents += IMGUI_TEXT.format(name)
+        if 'LineDivider' in type_:
+            file_contents += f"    ImGui::Text(\"{'-'*80}\");\n"
+        if 'SelectionList' in type_:
+            val2 = ''.join([c for c in value if (c != '}' and c != '{')])
+            list_val = val2.split(',')[1:]
+            # file_contents \
+            #     += f"    std::vector<bool> sel_{k} ({len(list_val)});\n"
+            # file_contents \
+            #     += f"    for (int i = 0; i < {len(list_val)}; i++)\n"
+            # file_contents \
+            #     += f"        sel_{k}[i] = (i == params->{k}.selected);\n"
+            file_contents += "    if (ImGui::BeginMenu(\"{}\")) {{\n".format(name)
+            for i, e in enumerate(list_val):
+                file_contents += "    " + IMGUI_MENU.format(
+                    e, f"params->{camel_to_snake(k, True)}", i
+                )
+            file_contents += "        ImGui::EndMenu();\n"
+            file_contents += "    }\n"
+            # file_contents \
+            #     += f"    for (int i = 0; i < {len(list_val)}; i++)\n"
+            # file_contents \
+            #     += f"        if (sel_{k}[i]) params->{k}.selected = i;\n"
+            # file_contents \
+            #     += (f"    s_selection_set(params->{camel_to_snake(k, True)},"
+            #          + f" params->{k}.selected);\n")
+    file_contents += IMGUI_CONTROLS_END
+    with open(dst_file_name, "w") as f:
+        f.write(file_contents)
 
 with open('parameters.json', 'r') as f:
     parameters = json.loads(''.join([line for line in f]))
 
 write_sliders_js(parameters, "sliders.js")
+write_imgui_controls(
+    parameters, "sim_2d", "parameters.hpp", "imgui_wrappers.hpp")
 write_typed_sim_parameters_hpp(parameters, "sim_2d", "parameters.hpp")

@@ -28,13 +28,22 @@ function createScalarParameterSlider(
     });
 };
 
-function createCheckbox(controls, enumCode, name, value) {
+gCheckboxXorLists = {};
+
+function createCheckbox(controls, enumCode, name, value, xorListName='') {
     let label = document.createElement("label");
     // label.for = spec['id']
     label.style = "color:white; font-family:Arial, Helvetica, sans-serif";
-    label.textContent = `${name}`
+    label.innerHTML = `${name}`
     let checkbox = document.createElement("input");
     checkbox.type = "checkbox";
+    checkbox.id = `checkbox-${enumCode}`;
+    if (xorListName !== '') {
+        if (!(xorListName in gCheckboxXorLists))
+            gCheckboxXorLists[xorListName] = [checkbox.id];
+        else
+            gCheckboxXorLists[xorListName].push(checkbox.id);
+    }
     // slider.style ="width: 95%;"
     // checkbox.value = value;
     checkbox.checked = value;
@@ -45,6 +54,15 @@ function createCheckbox(controls, enumCode, name, value) {
     checkbox.addEventListener("input", e => {
         console.log(e.target.checked);
         Module.set_bool_param(enumCode, e.target.checked);
+        if (e.target.checked === true && xorListName !== '') {
+            for (let id_ of gCheckboxXorLists[xorListName]) {
+                if (id_ !== checkbox.id) {
+                    let enumCode2 = parseInt(id_.split('-')[1]);
+                    Module.set_bool_param(enumCode2, false);
+                    document.getElementById(id_).checked = false;
+                }
+            }
+        }
     }
     );
 }
@@ -106,6 +124,10 @@ function createSelectionList(
         selector.add(option);
     }
     selector.value = defaultVal;
+    selector.addEventListener("change", e =>
+        Module.selection_set(
+            enumCode, Number.parseInt(e.target.value))
+    );
     controls.appendChild(selector);
     controls.appendChild(document.createElement("br"));
 }
@@ -147,7 +169,7 @@ function modifyUserSliders(enumCode, variableList) {
 }
 
 function createEntryBoxes(
-    controls, enumCode, entryBoxName, count
+    controls, enumCode, entryBoxName, count, subLabels
 ) {
     let label = document.createElement("label");
     label.style = "color:white; font-family:Arial, Helvetica, sans-serif";
@@ -163,7 +185,7 @@ function createEntryBoxes(
         entryBox.style = "width: 95%;";
         let label = document.createElement("label");
         label.style = "color:white; font-family:Arial, Helvetica, sans-serif";
-        label.textContent = `${i}`;
+        label.textContent = `${subLabels[i]}`;
         if (count >= 2) {
             controls.appendChild(label);
             controls.appendChild(document.createElement("br"));
@@ -194,7 +216,7 @@ function createButton(
 }
 
 function createLabel(
-    controls, labelName, style=''
+    controls, enumCode, labelName, style=''
 ) {
     let label = document.createElement("label");
     if (style === '')
@@ -202,8 +224,15 @@ function createLabel(
     else
         label.style = style;
     label.textContent = `${labelName}`;
+    label.id = `label-${enumCode}`;
     controls.appendChild(label);
     controls.appendChild(document.createElement("br"));
+}
+
+function editLabel(enumCode, textContent) {
+    let idVal = `label-${enumCode}`;
+    let label = document.getElementById(idVal);
+    label.textContent = textContent;
 }
 
 function createLineDivider(controls) {
@@ -216,21 +245,18 @@ let controls = document.getElementById('controls');
 createScalarParameterSlider(controls, 1, "Brightness", "float", {'value': 0.15, 'min': 0.0, 'max': 2.0, 'step': 0.01});
 createScalarParameterSlider(controls, 3, "Time step (a.u.)", "float", {'value': 0.01, 'min': 0.0, 'max': 0.1, 'step': 0.001});
 createCheckbox(controls, 4, "Negative time step", false);
-createButton(controls, 5, "Normalize Wave Function");
+createButton(controls, 5, "Normalize wave function");
 createCheckbox(controls, 6, "3D view", false);
 createLineDivider(controls);
-createLabel(controls, "Reset parameters", "color:white; font-family:Arial, Helvetica, sans-serif; font-weight: bold;");
-createLabel(controls, "(Press the 'Reset simulation' button for changes to take effect.)", "");
+createLabel(controls, 11, "Reset parameters", "color:white; font-family:Arial, Helvetica, sans-serif; font-weight: bold;");
+createLabel(controls, 12, "(Press the 'Reset simulation' button for changes to take effect.)", "");
 createScalarParameterSlider(controls, 13, "Energy eigenstates count", "int", {'value': 16, 'min': 1, 'max': 256});
 createSelectionList(controls, 14, 1, "Laplacian discretization", [ "2nd order 5 pt.",  "4th order 9 pt."]);
-createScalarParameterSlider(controls, 15, "Grid width", "int", {'value': 128, 'min': 32, 'max': 256});
-createScalarParameterSlider(controls, 16, "Grid height", "int", {'value': 128, 'min': 32, 'max': 256});
 createScalarParameterSlider(controls, 17, "Mass (a.u.)", "float", {'value': 1.0, 'min': 0.2, 'max': 10.0, 'step': 0.01});
 createButton(controls, 18,  "Reset simulation", "color:black; font-family:Arial, Helvetica, sans-serif; font-weight: bold;");
 createLineDivider(controls);
-createSelectionList(controls, 20, 0, "Preset V(x, y)", [ "None",  "x^2 + y^2",  "sqrt(x^2 + y^2)",  "Circle",  "Heart"]);
-createEntryBoxes(controls, 21, "Text edit V(x, y)", 1);
-createButton(controls, 22, "Enter modified potential");
-createLabel(controls, "-5 a.u. ≤ x < 5 a.u.", "");
-createLabel(controls, "-5 a.u. ≤ y < 5 a.u.", "");
+createEntryBoxes(controls, 20, "Text edit V(x, y)", 1, []);
+createButton(controls, 21, "Enter modified potential");
+createLabel(controls, 22, "-5 a.u. ≤ x < 5 a.u.", "");
+createLabel(controls, 23, "-5 a.u. ≤ y < 5 a.u.", "");
 

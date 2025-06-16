@@ -22,9 +22,9 @@ DATA_DEPENDENCIES = parameters.json
 GENERATION_SCRIPTS = make_parameter_files.py
 GENERATED_DEPENDENCIES = parameters.hpp
 C_SOURCES =
-CPP_SOURCES = main.cpp simulation.cpp interactor.cpp gl_wrappers.cpp glfw_window.cpp eigenstates2d.cpp preset_potential.cpp circles_wireframe.cpp clock_hands_wireframe.cpp levels_wireframe.cpp parse.cpp surface.cpp # user_edit_glsl.cpp
+CPP_SOURCES = main.cpp simulation.cpp interactor.cpp gl_wrappers.cpp glfw_window.cpp eigenstates2d.cpp circles_wireframe.cpp clock_hands_wireframe.cpp levels_wireframe.cpp parse.cpp surface.cpp # user_edit_glsl.cpp
 SOURCES = ${C_SOURCES} ${CPP_SOURCES}
-OBJECTS = main.o simulation.o interactor.o gl_wrappers.o glfw_window.o eigenstates2d.o preset_potential.o circles_wireframe.o clock_hands_wireframe.o levels_wireframe.o parse.o surface.o # user_edit_glsl.o
+OBJECTS = main.o simulation.o interactor.o gl_wrappers.o glfw_window.o eigenstates2d.o circles_wireframe.o clock_hands_wireframe.o levels_wireframe.o parse.o surface.o # user_edit_glsl.o
 # SHADERS = ./shaders/*
 
 

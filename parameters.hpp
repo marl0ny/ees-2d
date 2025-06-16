@@ -9,6 +9,8 @@ struct Button {};
 
 typedef std::string Label;
 
+typedef bool BoolRecord;
+
 typedef std::vector<std::string> EntryBoxes;
 
 struct SelectionList {
@@ -19,6 +21,8 @@ struct SelectionList {
 struct SimParams {
 
 struct LineDivider {};
+
+struct NotUsed {};
     int stepsPerFrame = (int)(1);
     float brightness = (float)(0.15F);
     float t = (float)(0.0F);
@@ -39,7 +43,6 @@ struct LineDivider {};
     float m = (float)(1.0F);
     Button simResetButton = Button{};
     LineDivider lineDivider2 = LineDivider{};
-    SelectionList presetPotential = SelectionList{0, {"None", "x^2 + y^2", "sqrt(x^2 + y^2)", "Circle", "Heart"}};
     EntryBoxes scalarPotential = EntryBoxes{"0"};
     Button enterScalarPotential = Button{};
     Label xRangeLabel = Label{};
@@ -65,11 +68,10 @@ struct LineDivider {};
         M=17,
         SIM_RESET_BUTTON=18,
         LINE_DIVIDER2=19,
-        PRESET_POTENTIAL=20,
-        SCALAR_POTENTIAL=21,
-        ENTER_SCALAR_POTENTIAL=22,
-        X_RANGE_LABEL=23,
-        Y_RANGE_LABEL=24,
+        SCALAR_POTENTIAL=20,
+        ENTER_SCALAR_POTENTIAL=21,
+        X_RANGE_LABEL=22,
+        Y_RANGE_LABEL=23,
     };
     void set(int enum_val, Uniform val) {
         switch(enum_val) {
@@ -147,8 +149,20 @@ struct LineDivider {};
     }
     void set(int enum_val, int index, std::string val) {
         switch(enum_val) {
+            case SIM_RESET_LABEL:
+            simResetLabel = val;
+            break;
+            case SIM_RESET_LABEL_SUBTEXT:
+            simResetLabelSubtext = val;
+            break;
             case SCALAR_POTENTIAL:
             scalarPotential[index] = val;
+            break;
+            case X_RANGE_LABEL:
+            xRangeLabel = val;
+            break;
+            case Y_RANGE_LABEL:
+            yRangeLabel = val;
             break;
         }
     }

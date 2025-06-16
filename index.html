@@ -15,20 +15,22 @@
                 <div style="overflow-y: scroll; max-height: 700px;" id="controls"></div>
             </div>
             <div style="grid-column: 2;">
+                <h2 style="color:white; font-size:16px; text-align: center;">Interactive Single-Particle Quantum Mechanics Simulation in 2D</h2>
                 <canvas id="canvas" oncontextmenu="event.preventDefault()"
                     style="touch-action: none; 
                         border: solid white 1px; top: 0px; bottom: 0px;
                         text-align: center;">
                 </canvas>
                 <br>
-                <h3 style="color:white; font-size:14px; text-align: center;">Interactive Simulation of the Schrödinger Equation in 2D</h2>
-                <p style="color:white; font-size:14px;">This interactive web program simulates 2D quantum systems by first numerically solving for the stationary states of the time-independent Schrödinger equation for arbitrary potentials, 
-                    where the user can then interactively create linear combinations of these states and visualize their time evolution.
+                <p style="color:white; font-size:14px;">This simulation works by approximating the position space Hamiltonian of the quantum system using a uniform finite difference grid,
+                    where its energy eigenstates |n> and eigenvalues E_n can be subsequently solved for. From here the quantum system's wave function |\psi> is expressed as a linear combination of these energy eigenstates |n>,
+                    where <br> |\psi(0)> = \sum c_n |n>, and |\psi(t)> = \sum c_n exp(-iE_nt/hbar) |n> = \sum c_n(t) |n></br> for an arbitrary time t.
+                    Now each of these complex-valued coefficients c_n(t) are visually represented using circular "clock face" sliders, which can be interactively modified in real time by the user. The lengths for each of these circular
+                    sliders are proportional to the quantity |c_n(t)|, and their angular offsets are the same as the phase factor -E_n t/hbar.
                 </p>
                 <p style="color:white; font-size:14px;">
-                    This program is heavily inspired by <a href="https://www.falstad.com/">Paul Falstad's</a> wonderful
-                    quantum mechanics <a href="https://www.falstad.com/qm2dosc/">programs</a>.
-                    Numerical computations for finding the eigenstates and energies of the Hamiltonian are found using the libraries <a href="https://eigen.tuxfamily.org/index.php?title=Main_Page">Eigen</a> and <a href="https://spectralib.org/">Spectra</a>. Both are licensed under the <a href="https://www.mozilla.org/en-US/MPL/2.0/">MPL2</a>.
+                    The simulation's user interface and visualization are based on Paul Falstad's various <a href="https://www.falstad.com/qm2dosc/">quantum mechanics apps</a>. Some additional inspiration comes from Daniel Schroeder's <a href="https://physics.weber.edu/schroeder/software/HarmonicOscillator.html">quantum mechanics programs</a>.
+                    Computations for obtaining the eigenvectors and eigenvalues of the numerically-approximated Hamiltonian matrix are found using <a href="https://eigen.tuxfamily.org/index.php?title=Main_Page">Eigen</a> and <a href="https://spectralib.org/">Spectra</a>. Both are licensed under the <a href="https://www.mozilla.org/en-US/MPL/2.0/">MPL2</a>.
                 </p>
                 <!--<p style="color:white; font-size:14px; text-align: center;">
                 Use the mouse to grab and move the box of springs around.

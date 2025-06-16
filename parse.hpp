@@ -11,11 +11,11 @@ std::vector<std::string> get_expression_stack(const std::string &input);
 std::vector<std::string> shunting_yard(std::vector<std::string> expr_stack);
 
 double compute_expression(
-    const std::string &input, std::map<std::string, double> variables);
+    const std::string &input, const std::map<std::string, double> &variables);
 
 double compute_expression(
     const std::vector<std::string> &rpn_list, 
-    std::map<std::string, double> variables);
+    const std::map<std::string, double> &variables);
 
 std::string
 turn_rpn_expression_to_glsl_expression_string(
@@ -24,6 +24,8 @@ turn_rpn_expression_to_glsl_expression_string(
 std::string 
 turn_rpn_expression_to_latex_string(
     std::vector<std::string> rpn_list);
+
+void test_parse_number();
 
 void test_get_expression_stack();
 

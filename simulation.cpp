@@ -3,20 +3,24 @@
 #include "circles_wireframe.hpp"
 #include "clock_hands_wireframe.hpp"
 #include "eigenstates2d.hpp"
-#include "preset_potential.hpp"
 #include "levels_wireframe.hpp"
 #include "parse.hpp"
 #include "surface.hpp"
 #include <cstdint>
+#include <random>
+
 
 
 Programs::Programs() {
     this->domain_color = Quad::make_program_from_path(
         "./shaders/util/domain-color.frag"
     );
+    this->uniform_color = Quad::make_program_from_path(
+        "./shaders/util/uniform-color.frag"
+    );
     this->circles = make_program_from_paths(
         "./shaders/gui/circles.vert", 
-        "./shaders/util/uniform-color.frag"
+        "./shaders/gui/circles.frag"
     );
     this->clock_hands = make_program_from_paths(
         "./shaders/gui/clock-hands.vert",
@@ -35,14 +39,12 @@ Programs::Programs() {
     );
 }
 
-static struct IVec2 rectangular_root(unsigned int n) {
-    struct IVec2 d = {.ind={(int)n, 1}};
-    int i = 1;
-    for (; i*i < n; i++) {}
-    for (; n % i; i--) {}
-    d.ind[0] = ((n / i) > i)? (n / i): i;
-    d.ind[1] = ((n / i) < i)? (n / i): i;
-    return d;
+static IVec2 get_closest_larger_square(unsigned int n) {
+    for (int i = 1; i; i++) {
+        if (n > (i*i) && n <= ((i + 1)*(i + 1)))
+            return IVec2{.ind{(i + 1), (i + 1)}}; 
+    }
+    return {.x=0, .y=0};
 }
 
 Frames::Frames(
@@ -71,8 +73,10 @@ Frames::Frames(
     coefficients(
         {
             .format=GL_RG32F, 
-            .width=(uint32_t)rectangular_root(n_states)[0],
-            .height=(uint32_t)rectangular_root(n_states)[1],
+            // .width=(uint32_t)rectangular_root(n_states)[0],
+            // .height=(uint32_t)rectangular_root(n_states)[1],
+            .width=(uint32_t)get_closest_larger_square(n_states)[0],
+            .height=(uint32_t)get_closest_larger_square(n_states)[1],
             .wrap_s=GL_CLAMP_TO_EDGE,
             .wrap_t=GL_CLAMP_TO_EDGE,
             .min_filter=GL_LINEAR,
@@ -82,8 +86,10 @@ Frames::Frames(
     coefficients_tmp(
         {
             .format=GL_RG32F, 
-            .width=(uint32_t)rectangular_root(n_states)[0],
-            .height=(uint32_t)rectangular_root(n_states)[1],
+            // .width=(uint32_t)rectangular_root(n_states)[0],
+            // .height=(uint32_t)rectangular_root(n_states)[1],
+            .width=(uint32_t)get_closest_larger_square(n_states)[0],
+            .height=(uint32_t)get_closest_larger_square(n_states)[1],
             .wrap_s=GL_CLAMP_TO_EDGE,
             .wrap_t=GL_CLAMP_TO_EDGE,
             .min_filter=GL_LINEAR,
@@ -101,9 +107,13 @@ Frames::Frames(
         }
     }),
     circles(get_circles_wireframe(
-        rectangular_root(n_states))),
+        get_closest_larger_square(n_states)
+        // rectangular_root(n_states)
+    )),
     clock_hands(get_clock_hands_wireframe(
-        rectangular_root(n_states))),
+        get_closest_larger_square(n_states)
+        // rectangular_root(n_states)
+    )),
     levels(
         get_levels_wireframe(n_states)
     ),
@@ -116,8 +126,10 @@ void Frames::reset(int n_states) {
     this->coefficients.reset(
         {
             .format=GL_RG32F, 
-            .width=(uint32_t)rectangular_root(n_states)[0],
-            .height=(uint32_t)rectangular_root(n_states)[1],
+            // .width=(uint32_t)rectangular_root(n_states)[0],
+            // .height=(uint32_t)rectangular_root(n_states)[1],
+            .width=(uint32_t)get_closest_larger_square(n_states)[0],
+            .height=(uint32_t)get_closest_larger_square(n_states)[1],
             .wrap_s=GL_CLAMP_TO_EDGE,
             .wrap_t=GL_CLAMP_TO_EDGE,
             .min_filter=GL_LINEAR,
@@ -127,8 +139,10 @@ void Frames::reset(int n_states) {
     this->coefficients_tmp.reset(
         {
             .format=GL_RG32F, 
-            .width=(uint32_t)rectangular_root(n_states)[0],
-            .height=(uint32_t)rectangular_root(n_states)[1],
+            // .width=(uint32_t)rectangular_root(n_states)[0],
+            // .height=(uint32_t)rectangular_root(n_states)[1],
+            .width=(uint32_t)get_closest_larger_square(n_states)[0],
+            .height=(uint32_t)get_closest_larger_square(n_states)[1],
             .wrap_s=GL_CLAMP_TO_EDGE,
             .wrap_t=GL_CLAMP_TO_EDGE,
             .min_filter=GL_LINEAR,
@@ -146,15 +160,20 @@ void Frames::reset(int n_states) {
         }
     );
     this->circles = get_circles_wireframe(
-        rectangular_root(n_states));
+        get_closest_larger_square(n_states)
+        // rectangular_root(n_states)
+    );
     this->clock_hands = get_clock_hands_wireframe(
-        rectangular_root(n_states));
+        get_closest_larger_square(n_states)
+        // rectangular_root(n_states)
+    );
     this->levels = get_levels_wireframe(n_states);
 }
 
 void Simulation::compute_new_energies(sim_2d::SimParams &params) {
     if (params.numberOfStates != m_coefficients.size()) {
-        printf("Number of states: %d, %d\n", params.numberOfStates, m_coefficients.size());
+        // printf("Number of states: %d, %d\n", 
+        //        params.numberOfStates, m_coefficients.size());
         m_frames.reset(params.numberOfStates);
         // m_initial_coefficients = Eigen::Vector
         m_initial_coefficients.resize(params.numberOfStates);
@@ -208,53 +227,39 @@ void Simulation::config_at_start(sim_2d::SimParams &params) {
     // for (int i = 0; i < params.numberOfStates; i++) {
 
     // }
-    m_potential = init_potential({
-        .a=10000.0,
-        // .a=0.0,
-        .y0=0.0, .w=0.0, .spacing=0.5,
-        .x1=0.0, .x2=0.0, .a_imag=0.0,
-        .potential_type=PotentialParams::EMBEDDED_HARMONIC,
-        .width=params.gridWidth,
-        .height=params.gridHeight
-    });
-    // params.
-    // m_potential = init_potential({
-    //     .a=10000.0,
-    //     // .a=0.0,
-    //     .y0=0.65, .w=0.05, .spacing=0.1,
-    //     .x1=0.4, .x2=0.6, .a_imag=0.0,
-    //     .potential_type=PotentialParams::DOUBLE_SLIT,
-    //     .width=params.gridWidth,
-    //     .height=params.gridHeight
-    // });
-    compute_new_energies(params);
+    this->m_potential = Eigen::MatrixXd(params.gridWidth, params.gridHeight);
+    this->set_potential_from_string(
+        params, "2.5*(x^2 + y^2)", {});
 }
-
 
 void Simulation::modify_stationary_state_coefficient(
     sim_2d::SimParams &params, Vec2 cursor_pos1, Vec2 cursor_pos2) {
-    IVec2 widgets_dim = rectangular_root(params.numberOfStates);
+    // IVec2 widgets_dim = rectangular_root(params.numberOfStates);
+    IVec2 widgets_dim = get_closest_larger_square(params.numberOfStates);
     float dx = 1.0/widgets_dim[0];
     float dy = 1.0/widgets_dim[1];
-    int y_offset = int(cursor_pos1.y/dy);
-    int x_offset = int((1.0 - cursor_pos1.x)/dx);
+    int x_offset = int(cursor_pos1.x/dx);
+    int y_offset = int((1.0 - cursor_pos1.y)/dy);
     int location = y_offset*widgets_dim[0] + x_offset;
     float subsquare_x 
         = cursor_pos2.x*widgets_dim[0] - int(cursor_pos1.x/dx) - 0.5;
     float subsquare_y 
         = cursor_pos2.y*widgets_dim[1] - int(cursor_pos1.y/dy) - 0.5;
     Vec2 subsquare_coord = Vec2{.x=subsquare_x, .y=subsquare_y};
+    std::vector<std::complex<double>> coefficients(params.numberOfStates, 0);
     for (int i = 0; i < params.numberOfStates; i++) {
-        m_initial_coefficients[i] = m_coefficients[i];
+        coefficients[i] = m_coefficients[params.numberOfStates - i - 1];
         if (i == location) {
             if (subsquare_coord.length_squared() > 0.4*0.4)
                 subsquare_coord = 0.4*subsquare_coord.normalized();
             if (subsquare_coord.length_squared() < 0.04*0.04)
-                m_initial_coefficients[i] = 0.0;
+                coefficients[i] = 0.0;
             else
-                m_initial_coefficients[i] = std::complex<double>(
+                coefficients[i] = std::complex<double>(
                     (subsquare_coord/0.4).x, (subsquare_coord/0.4).y);
         }
+        m_initial_coefficients[params.numberOfStates - i - 1]
+             = coefficients[i];
     }
     params.t = 0.0;
     // printf("%f, %f\n", x, y);
@@ -357,8 +362,13 @@ std::map<std::string, double> Simulation::set_potential_from_string(
     std::map<std::string, double> user_params) {
     std::vector<std::string> expr_stack = get_expression_stack(string_val);
     std::vector<std::string> rpn_list = shunting_yard(expr_stack);
+    // std::cout << "rpn list: \n";
+    // for (auto &e: rpn_list)
+    //     std::cout << e << std::endl;
+    // std::cout << std::endl;
     std::set<std::string> variables 
         = get_variables_from_rpn_list(rpn_list);
+    // std::cout << "variables: \n";
     std::map<std::string, double> variables_values;
     for (auto &variable: variables)
         variables_values.insert({variable, 1.0F});
@@ -378,8 +388,16 @@ std::map<std::string, double> Simulation::set_potential_from_string(
                  * (((double)i + 0.5)/(double)params.gridHeight - 0.5);
             variables_values.insert_or_assign("x", x);
             variables_values.insert_or_assign("y", y);
-            double val = compute_expression(rpn_list, 
-                variables_values);
+            double val = compute_expression(rpn_list, variables_values);
+            // if (i == params.gridWidth - 1
+            //     && j == params.gridHeight - 1) {
+            //     std::cout << "Expression: " << string_val << std::endl;
+            //     std::cout << "Variables: " << std::endl;
+            //     for (auto &e: variables_values) {
+            //         std::cout << e.first << ": " << e.second << std::endl;
+            //     }
+            //     std::cout << "Value: " << val << std::endl;
+            // }
             m_potential(i, j) = val;
         }
     }
@@ -422,9 +440,12 @@ void Simulation::time_step(sim_2d::SimParams &params) {
                 *= sqrt(params.gridWidth*params.gridHeight);
         }
     }
-    auto coefficients_f = Eigen::VectorXcf(params.numberOfStates);
-    for (int k = 0; k < params.numberOfStates; k++)
-        coefficients_f[k] = m_coefficients[k];
+    int size = m_frames.coefficients.height()*m_frames.coefficients.width();
+    auto coefficients_f = Eigen::VectorXcf(size);
+    for (int k = size - 1; k >= 0; k--) {
+        int j = k - (size - params.numberOfStates);
+        coefficients_f[k] = (j >= 0)? m_coefficients[j]: 0.0;
+    }
     m_frames.coefficients_tmp.set_pixels((float *)&coefficients_f[0]);
     m_frames.coefficients.draw(
         m_programs.flip_horizontal,
@@ -439,6 +460,33 @@ void Simulation::normalize_wave_function(const sim_2d::SimParams &params) {
         norm_val += m_coefficients[i]*conj(m_coefficients[i]);
     for (int i = 0; i < params.numberOfStates; i++)
         m_initial_coefficients[i] /= sqrt(norm_val.real());
+}
+
+double Simulation::measure_energy(const sim_2d::SimParams &params) {
+    // Eigen::MatrixXd coefficients_squared(params.numberOfStates);
+    double norm_val = 0.0;
+    for (int i = 0; i < params.numberOfStates; i++) {
+         norm_val += std::real(m_coefficients[i]*conj(m_coefficients[i]));
+    }
+    std::random_device rand_device;
+    std::default_random_engine rand_engine (rand_device());
+    std::uniform_real_distribution<double> rand(0.0, 1.0);
+    double rand_val = rand(rand_engine);
+    double val = 0.0;
+    double energy = 0.0;
+    int index = 0;
+    for (int i = 0; i < params.numberOfStates; i++) {
+        val += std::abs(m_coefficients[i])*std::abs(m_coefficients[i])
+            / norm_val;
+        if (val >= rand_val) {
+            energy = std::abs(m_energy_eigenvalues[i]);
+            index = i;
+            break;
+        }
+    }
+    for (int i = 0; i < params.numberOfStates; i++)
+        m_initial_coefficients[i] = (i == index)? 1.0: 0.0;
+    return energy;
 }
 
 static WireFrame get_quad_wire_frame() {
@@ -465,6 +513,11 @@ static double compute_energy_expectation_value(
         norm_val += coefficients[i]*std::conj(coefficients[i]);
     }
     return exp.real()/norm_val.real();
+}
+
+static double get_level_pos(
+    double level, double min_level, double max_level) {
+    return (level - min_level)/(max_level - min_level);
 }
 
 const RenderTarget& Simulation::view(
@@ -541,10 +594,37 @@ const RenderTarget& Simulation::view(
             m_frames.main_view_tex_params.height/4, 
             m_frames.main_view_tex_params.height)
     );
+    {
+        WireFrame tmp = get_quad_wire_frame();
+        double level_pos 
+            = get_level_pos(expectation_value, min_level, max_level);
+        m_frames.main_render.draw(
+            m_programs.uniform_color,
+            {
+                {"color", Vec4{.r=1.0, .g=1.0, .b=1.0, .a=1.0}},
+            },
+            tmp,
+            Config::viewport(
+                int(m_frames.main_view_tex_params.height*(1.0 + 0.05*0.25)),
+                int(m_frames.main_view_tex_params.height*
+                       (0.9*level_pos + 0.05)) - 1,
+                int(0.9*(m_frames.main_view_tex_params.height/4.0)),
+                3
+            )
+        );
+    }
+    /*
+    uniform ivec2 circlesGridSize;
+    uniform int inUseCount;
+    */
     m_frames.main_render.draw(
         m_programs.circles,
         {
-            {"color", Vec4{.r=1.0, .g=1.0, .b=1.0, .a=1.0}}
+            {"color", Vec4{.r=1.0, .g=1.0, .b=1.0, .a=1.0}},
+            {"circlesGridSize", IVec2{.ind{
+            (int)m_frames.coefficients.width(),
+            (int)m_frames.coefficients.height()}}},
+            {"inUseCount", int(params.numberOfStates)}
         },
         m_frames.circles,
         Config::viewport(

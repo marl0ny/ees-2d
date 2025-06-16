@@ -47,14 +47,6 @@ static double call_function(string name, double value) {
     return NAN;
 }
 
-
-// static const std::map<std::string, size_t> PRECEDENCE_RANK {
-//     {""}
-//     {"^", 2},
-//     {"/", 1}, {"*", 1},
-//     {"+", 0}, {"-", 0}
-// };
-
 static bool in_functions_list(const string &f) {
     for (auto &f2: FUNCTIONS_LIST) {
         if (f == f2)
@@ -77,11 +69,19 @@ static int precedence_of(const string &c) {
 }
 
 static bool is_single_character_number(char c) {
-    for (auto &c2: "12345670") {
+    for (auto &c2: "1234567890") {
         if (c == c2)
             return true;
     }
     return false;
+}
+
+static bool is_decimal_point(char c) {
+    return c == '.';
+}
+
+static bool starts_with_number(const string &s) {
+    return is_single_character_number(s[0]) || is_decimal_point(s[0]);
 }
 
 static bool is_single_character_op(char c) {
@@ -100,6 +100,14 @@ static bool is_a_letter(char c) {
     return false;
 }
 
+static bool starts_with_op(const std::string &s) {
+    return is_single_character_op(s[0]);
+}
+
+static bool starts_with_letter(const string &s) {
+    return is_a_letter(s[0]);
+}
+
 static bool is_parenthesis(char c) {
     return c == '(' || c == ')';
 }
@@ -108,12 +116,16 @@ static bool is_left_parenthesis(char c) {
     return c == '(';
 }
 
+static bool is_left_parenthesis(const string &s) {
+    return s == "(";
+}
+
 static bool is_right_parenthesis(char c) {
     return c == ')';
 }
 
-static bool is_decimal_point(char c) {
-    return c == '.';
+static bool is_right_parenthesis(const string &s) {
+    return s == ")";
 }
 
 struct Parsed {
@@ -134,7 +146,7 @@ static Parsed parse_variable(const string &input, size_t offset) {
 static Parsed parse_integer(const string &input, size_t offset) {
     std::string integer {};
     int j = offset;
-    for (; is_single_character_number(input[j]) && j < input.length(); j++) {
+    for (; j < input.length() && is_single_character_number(input[j]); j++) {
         integer += input[j];
     }
     return {.value=integer, .end_index=j, .success=true};
@@ -192,7 +204,7 @@ static Parsed parse_after_decimal(
     } else if (input[j] == 'e') {
         return parse_after_exponent(input, value, j+1);
     }
-    return {.success=false};
+    return {.value=value, .success=false};
 }
 
 static Parsed parse_number(const string &input, size_t offset) {
@@ -215,7 +227,42 @@ static Parsed parse_number(const string &input, size_t offset) {
     else if (input[j] == 'e')
         return parse_after_exponent(input, value, j+1);
     // Any other character returns a failure.
-    return {.success=false};
+    return {.value=value, .end_index=j, .success=false};
+}
+
+void test_parse_number() {
+    int test_number = 0;
+    int fail = 0;
+    auto test_case = [&](std::string input, int offset, std::string actual) {
+        test_number++;
+        Parsed p = parse_number(input, offset);
+        if (p.value != actual) {
+            std::cout << "Parse number test case " << test_number;
+            std::cout << " with input \"" <<  input << "\" failed: ";
+            std::cout << "resulting value should be \"" << actual;
+            std::cout << "\", but got \"" << p.value << "\" instead.\n";
+            fail++;
+        }
+    };
+    test_case("2", 0, "2");
+    test_case(" 2 ", 1, "2");
+    test_case("230", 0, "230");
+    test_case(" 230    ", 1, "230");
+    test_case(" 230    ", 2, "30");
+    test_case("324232379", 0, "324232379");
+    test_case("10.2131", 0, "10.2131");
+    test_case("1.2131", 0, "1.2131");
+    test_case("3.1415", 0, "3.1415");
+    test_case("3.14159", 0, "3.14159");
+    test_case("2.718281828", 0, "2.718281828");
+    test_case("2+100 ", 0, "2");
+    test_case(" 20-", 1, "20");
+    test_case(" 201-", 1, "201");
+    test_case(" 201.331-", 1, "201.331");
+    test_case(" 2.0*", 1, "2.0");
+    test_case(" 2F", 1, "2");
+    if (fail != 0)
+        std::cout << "Failed " << fail << " of " << test_number << " cases.\n";
 }
 
 static string handle_unary_operators(string expr) {
@@ -250,15 +297,22 @@ static bool check_if_parenthesis_are_balanced(const string &input) {
     return left_parenthesis_stack.empty();
 }
 
-vector<string> get_expression_stack(const string &input) {
-    // std::string input = "";
-    // for (auto &c: input_)
-    //     if (c != ' ')
-    //         input += c;
-    if (!check_if_parenthesis_are_balanced(input)) {
+static string pop(vector<string> &stack) {
+    string val = stack.back();
+    stack.pop_back();
+    return val;
+}
+
+static void push(vector<string> &stack, const std::string &val) {
+    stack.push_back(val);
+}
+
+vector<string> get_expression_stack(const string &raw_input) {
+    if (!check_if_parenthesis_are_balanced(raw_input)) {
         std::cerr << "Unbalanced parentheses.\n";
         return {};
     }
+    std::string input = handle_unary_operators(raw_input);
     vector<string> reversed_expr {};
     int i = 0;
     while(i < input.length()) {
@@ -377,19 +431,82 @@ static T deque(vector<T> &v) {
     return val;
 }
 
+static bool is_a_letter_or_number(char c) {
+    return (is_single_character_number(c)
+         || is_decimal_point(c) || is_a_letter(c));
+}
+
+static bool two_numerical_values_on_top(const vector<string> &rpn_stack) {
+    int size = rpn_stack.size();
+    return (size >= 2
+            && starts_with_number(rpn_stack[size - 1]) 
+            && starts_with_number(rpn_stack[size - 2]));
+}
+
+#ifndef __EMSCRIPTEN__
+union DoubleUnsignedLong {
+    double f64;
+    unsigned long u64;
+};
+
+static double pop_number(vector<string> &stack) {
+    unsigned long val = std::stoul(stack.back().c_str());
+    DoubleUnsignedLong p {.u64=val};
+    stack.pop_back();
+    return p.f64;
+}
+
+static void push_number(vector<string> &stack, double val) {
+    DoubleUnsignedLong p {.f64=val};
+    stack.push_back(std::to_string(p.u64));
+}
+#else
+union FloatUnsigned {
+    float f32;
+    unsigned int u32;
+};
+
+static double pop_number(vector<string> &stack) {
+    unsigned int val = std::stoul(stack.back().c_str());
+    FloatUnsigned  p {.u32=val};
+    stack.pop_back();
+    return double(p.f32);
+}
+
+static void push_number(vector<string> &stack, double val) {
+    FloatUnsigned  p {.f32=float(val)};
+    stack.push_back(std::to_string(p.u32));
+}
+
+#endif
+
+static void push_number(vector<string> &stack, const std::string &val) {
+    push_number(stack, std::stod(val));
+}
+
 double compute_rpn_expression(
-    vector<string> rpn_list, map<string, double> variables) {
+    vector<string> rpn_list, const map<string, double> &variables) {
+    // std::cout << "RPN List: ";
+    // for (auto &e: rpn_list)
+    //     std::cout << e << ", ";
+    // std::cout << std::endl;
+    // std::cout << "Variables: \n";
+    // for (auto &e: variables)
+    //     std::cout << e.first <<  ": " << e.second << std::endl;
     vector<string> rpn_stack {};
     while (rpn_list.size() > 0) {
         string e = deque(rpn_list);
-        if (is_single_character_number(e[0]) || is_decimal_point(e[0])) {
-            rpn_stack.push_back(e);
-        } else if (is_single_character_op(e[0])) {
-            double r_val = std::stod(rpn_stack.back().c_str());
-            rpn_stack.pop_back();
-            double l_val = std::stod(rpn_stack.back().c_str());
-            rpn_stack.pop_back();
-            double val = 0.0;
+        if (starts_with_number(e)) {
+            // std::cout << "If starts with number: " << e << std::endl;
+            push_number(rpn_stack, e);
+        } else if (starts_with_op(e)) {
+            if (!two_numerical_values_on_top(rpn_stack))
+                return 0.0;
+            double r_val = pop_number(rpn_stack);
+            double l_val = pop_number(rpn_stack);
+            // std::cout << "r_val: " << r_val << std::endl;
+            // std::cout << "l_val: " << r_val << std::endl;
+            double val;
             switch(e[0]) {
                 case '+':
                 val = l_val + r_val;
@@ -402,37 +519,40 @@ double compute_rpn_expression(
                 break;
                 case '/':
                 val = l_val / r_val;
+                break;
                 case '^':
                 val = pow(l_val, r_val);
                 break;
                 default:
+                val = 0.0;
                 break;
             }
-            rpn_stack.push_back(std::to_string(val));
-        } else if (is_a_letter(e[0])) {
+            push_number(rpn_stack, val);
+        } else if (starts_with_letter(e)) {
             if (in_functions_list(e)) {
-                double in_val = std::stod(rpn_stack.back().c_str());
-                rpn_stack.pop_back();
+                double in_val = pop_number(rpn_stack);
                 double out_val = call_function(e, in_val);
-                rpn_stack.push_back(std::to_string(out_val));
+                push_number(rpn_stack, out_val);
             } else {
-                double val = variables[e];
-                rpn_stack.push_back(std::to_string(val));
+                double variable_val = variables.at(e);
+                // std::cout << "Variable value: " << variable_val << std::endl;
+                push_number(rpn_stack, variable_val);
             }
         }
     }
-    return std::atof(rpn_stack.back().c_str());
+    return pop_number(rpn_stack);
 }
 
 double compute_expression(
-    const std::string &input, std::map<std::string, double> variables) {
+    const std::string &input,
+    const std::map<std::string, double> &variables) {
     auto rpn_list = shunting_yard(get_expression_stack(input));
     return compute_rpn_expression(rpn_list, variables);
 }
 
 double compute_expression(
     const std::vector<std::string> &rpn_list, 
-    std::map<std::string, double> variables) {
+    const std::map<std::string, double> &variables) {
     return compute_rpn_expression(rpn_list, variables);
 }
 
@@ -549,32 +669,93 @@ set<string> get_variables_from_rpn_list(vector<string> rpn_list) {
 }
 
 void test_shunting_yard() {
-    std::cout << std::to_string(double(1)) << std::endl;
+    int test_case_count = 0;
+    int test_case_failure = 0;
     auto test_case = [&](
         string s, std::map<string, double> variables, double actual_value) {
+        test_case_count++;
         auto rpn_list = shunting_yard(get_expression_stack(s));
         double computed_value = compute_rpn_expression(rpn_list, variables);
-        std::cout << "Input string: " << s << std::endl;
-        std::cout << "GLSL expression: ";
-        std::cout << turn_rpn_expression_to_glsl_expression_string(rpn_list) << std::endl;
-        std::cout << "LATEX: ";
-        std::cout << turn_rpn_expression_to_latex_string(rpn_list) << std::endl;
-        if (abs(computed_value - actual_value) > abs(1e-8*actual_value)) {
-            std::cerr << "Shunting yard test case failed:" << std::endl;
-            std::cerr << "Input string: " << s << std::endl;
-            std::cerr << "Variables: " << std::endl;
-            for (auto &name_var: variables) {
-                std::cerr << "\t" << name_var.first << " = " 
-                    << name_var.second << std::endl;
+        // std::cout << "Input string: " << s << std::endl;
+        // std::cout << "GLSL expression: ";
+        // std::cout << turn_rpn_expression_to_glsl_expression_string(rpn_list) << std::endl;
+        // std::cout << "LATEX: ";
+        // std::cout << turn_rpn_expression_to_latex_string(rpn_list) << std::endl;
+        if (abs(computed_value - actual_value) > abs(1e-30*actual_value)) {
+            test_case_failure++;
+            std::cerr << "Shunting yard test case " << test_case_count;
+            std::cerr << " failed:" << std::endl;
+            std::cerr << "\tInput string: \"" << s << "\"\n";
+            if (!variables.empty()) {
+                std::cerr << "\tValue of variables: " << std::endl;
+                for (auto &name_var: variables) {
+                    std::cerr << "\t" << name_var.first << " = " 
+                        << name_var.second << std::endl;
+                }
             }
-            std::cerr << "Actual value: " << actual_value << std::endl;
-            std::cerr << "Computed value: " << computed_value << std::endl;
+            std::cerr << "Computed value is " << computed_value << ", ";
+            std::cerr << "expected " << actual_value << " instead.\n\n";
         }
     };
     {
+        string s = "12.0 + 11";
+        double actual_value = 23.0;
+        test_case(s, {}, actual_value);
+    }
+    {
+        string s = "-10.0";
+        double actual_value = -10.0;
+        test_case(s, {}, actual_value);
+    }
+    {
+        string s = "-x";
+        std::map<string, double> variables = {{"x", 10.0}};
+        double actual_value = -10.0;
+        test_case(s, variables, actual_value);
+    }
+    {
+        string s = " - 10.0 + x";
+        std::map<string, double> variables = {{"x", 10.0}};
+        double actual_value = 0.0;
+        test_case(s, variables, actual_value);
+    }
+    {
+        string s = "-3*(-10.0 + x)";
+        std::map<string, double> variables = {{"x", 20.0}};
+        double actual_value = -30.0;
+        test_case(s, variables, actual_value);
+    }
+    {
+        string s = "cos(10.0*x)";
+        std::map<string, double> variables = {{"x", 3.14159}};
+        double actual_value = 0.9999999996479231;
+        test_case(s, variables, actual_value);
+    }
+    {
+        string s = "10.0/2";
+        double actual_value = 5.0;
+        test_case(s, {}, actual_value);
+    }
+    {
+        string s = "sin(3.14159/2)";
+        double actual_value = 0.9999999999991198;
+        test_case(s, {}, actual_value);
+    }
+    {
+        string s = "cos(3.14159/2.0)";
+        double actual_value = 1.3267948966775328e-06;
+        test_case(s, {}, actual_value);
+    }
+    {
+        string s = "sin(k*(k2*x - 10.0))";
+        std::map<string, double> variables 
+            = {{"k", 3.14159}, {"k2", 1.5}, {"x", 2.5}};
+        double actual_value = -0.7070950537684413;
+        test_case(s, variables, actual_value);
+    }
+    {
         string s = "12.0 + 11 - cos(x*11.75) + sin(k*(k2*x - 12.0))";
         double actual_value = 21.712239269078502;
-        // double actual_value = 21.7;
         std::map<string, double> variables = {
             {"x", 3.14159}, {"k", 10.0}, {"k2", 3.0}
         };
@@ -589,10 +770,21 @@ void test_shunting_yard() {
         test_case(s, variables, actual_value);
     }
     {
+        string s = "-k*(-x*y*z + sqrt(z^3)) - a";
+        double actual_value = 16247.39682354317;
+        std::map<string, double> variables = {
+            {"a", 10.0}, {"k", 5.5}, {"x", 12.0}, {"y", 13.0}, {"z", 19.5}
+        };
+        test_case(s, variables, actual_value);
+    }
+    /* {
         string s = "a*x -";
         auto rpn_list = shunting_yard(get_expression_stack(s));
         for (auto &e: rpn_list)
             std::cout << e << ", ";
         std::cout << std::endl;
-    }
+    }*/
+    if (test_case_failure > 0)
+        std::cout << "Failed " << test_case_failure << 
+            " out of " << test_case_count << " cases.\n";
 }

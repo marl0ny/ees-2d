@@ -14,6 +14,7 @@ struct Frames {
     Quad energies;
     WireFrame circles;
     WireFrame clock_hands;
+    // WireFrame expected_energy_level;
     WireFrame levels;
     WireFrame surface;
     Frames(
@@ -26,6 +27,7 @@ struct Frames {
 
 struct Programs {
     uint32_t domain_color;
+    uint32_t uniform_color;
     uint32_t circles;
     uint32_t clock_hands;
     uint32_t levels;
@@ -70,6 +72,7 @@ class Simulation {
         std::map<std::string, double> user_params
     );
     void normalize_wave_function(const sim_2d::SimParams &param);
+    double measure_energy(const sim_2d::SimParams &params);
 };
 
 #endif

@@ -51,6 +51,7 @@ void ees_2d(
     MainGLFWQuad main_render,
     sim_2d::SimParams &params,
     int window_width, int window_height) {
+    // test_shunting_yard();
     Interactor interactor(main_render.get_window());
     Simulation sim(window_width, window_height, params);
     sim_2d::SimParams modified_params {};
@@ -101,6 +102,9 @@ void ees_2d(
             sim.freeze();
             sim.compute_new_energies(params);
         }
+        // if (param_code == params.MEASURE_ENERGY) {
+        //     sim.measure_energy(params);
+        // }
     };
     s_sim_params_set_user_float_param = [&all_seen_variables](
         int c, std::string var_name, float value) {
