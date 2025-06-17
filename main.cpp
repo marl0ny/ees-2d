@@ -119,22 +119,18 @@ void ees_2d(
         // auto uniforms = potential_edit.get_active_uniforms();
         // return uniforms.operator[](s).vec2[0];
     };
-    /* s_sim_params_set_string = [&params, &potential_edit](
-        int c, int index, std::string val) {
-        printf("%s\n", &val[0]);
-        params.set(c, index, val);
-        potential_edit.new_texts({
-            params.scalarPotential[0]});
+    s_selection_set
+        = [&params, &sim, &all_seen_variables
+        ](int c, int val) {
+        if (c == params.PRESET_POTENTIAL) {
+            params.presetPotential.selected = val;
+            sim.set_preset_potential(
+                params, 
+                params.presetPotential.options[val]
+            );
+        }
+
     };
-    s_user_edit_set_value
-        = [&potential_edit](int c, std::string s, float value) {
-        potential_edit.set_value(s, value);      
-    };
-    s_user_edit_get_value
-        = [&potential_edit](int c, std::string s) -> float {
-        auto uniforms = potential_edit.get_active_uniforms();
-        return uniforms.operator[](s).vec2[0];
-    };*/
     std::vector<Vec2> start_position {};
     std::vector<Vec2> curr_position {};
     s_loop = [&] {

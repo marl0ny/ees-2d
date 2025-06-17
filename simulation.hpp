@@ -1,14 +1,15 @@
 #ifndef _SIMULATION_
 #define _SIMULATION_
 
-#include "eigenstates2d.hpp"
 #include "parameters.hpp"
+#include <Eigen/Core>
 
 struct Frames {
     TextureParams main_view_tex_params;
     TextureParams sim_tex_params;
     RenderTarget main_render;
     Quad wave_func;
+    Quad potential;
     Quad coefficients;
     Quad coefficients_tmp;
     Quad energies;
@@ -27,12 +28,15 @@ struct Frames {
 
 struct Programs {
     uint32_t domain_color;
+    uint32_t mag_color_map;
     uint32_t uniform_color;
     uint32_t circles;
     uint32_t clock_hands;
     uint32_t levels;
     uint32_t flip_horizontal;
-    uint32_t surface;
+    uint32_t surface_domain_color;
+    uint32_t surface_mag_color_map;
+    uint32_t surface_single_color;
     Programs();
 };
 
@@ -47,10 +51,13 @@ class Simulation {
     Eigen::MatrixXcd m_energy_eigenstates;
     bool is_recomputing;
     void config_at_start(sim_2d::SimParams &params);
+    void use_heart_potential(const sim_2d::SimParams &params);
+    void use_double_slit_potential(const sim_2d::SimParams &params);
+    void update_potential_tex();
     public:
     Simulation(int window_width, int window_height, sim_2d::SimParams params);
     void compute_new_energies(
-        sim_2d::SimParams &params);
+        const sim_2d::SimParams &params);
     // void compute_new_
     void freeze();
     void time_step(sim_2d::SimParams &params);
@@ -67,11 +74,13 @@ class Simulation {
         Vec2 cursor_pos1, Vec2 cursor_pos2
     );
     std::map<std::string, double> set_potential_from_string(
-        sim_2d::SimParams &param,
+        const sim_2d::SimParams &param,
         const std::string &val,
         std::map<std::string, double> user_params
     );
     void normalize_wave_function(const sim_2d::SimParams &param);
+    void set_preset_potential(
+        const sim_2d::SimParams &param, const std::string &val);
     double measure_energy(const sim_2d::SimParams &params);
 };
 

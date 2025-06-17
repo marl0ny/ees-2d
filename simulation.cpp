@@ -15,6 +15,9 @@ Programs::Programs() {
     this->domain_color = Quad::make_program_from_path(
         "./shaders/util/domain-color.frag"
     );
+    this->mag_color_map = Quad::make_program_from_path(
+        "./shaders/util/mag-color-map.frag"
+    );
     this->uniform_color = Quad::make_program_from_path(
         "./shaders/util/uniform-color.frag"
     );
@@ -33,9 +36,17 @@ Programs::Programs() {
     this->flip_horizontal = Quad::make_program_from_path(
         "./shaders/util/flip-horizontal.frag"
     );
-    this->surface = make_program_from_paths(
+    this->surface_domain_color = make_program_from_paths(
         "./shaders/surface/surface.vert",
         "./shaders/surface/domain-coloring.frag"
+    );
+    this->surface_mag_color_map = make_program_from_paths(
+        "./shaders/surface/surface.vert",
+        "./shaders/surface/mag-color-map.frag"
+    );
+    this->surface_single_color = make_program_from_paths(
+        "./shaders/surface/surface.vert",
+        "./shaders/surface/single-color.frag"
     );
 }
 
@@ -70,6 +81,17 @@ Frames::Frames(
     }),
     main_render(main_view_tex_params),
     wave_func(sim_tex_params),
+    potential(
+        {
+            .format=GL_RGBA32F, 
+            .width=sim_tex_params.width,
+            .height=sim_tex_params.height,
+            .wrap_s=GL_CLAMP_TO_EDGE,
+            .wrap_t=GL_CLAMP_TO_EDGE,
+            .min_filter=GL_LINEAR,
+            .mag_filter=GL_LINEAR,
+        }
+    ),
     coefficients(
         {
             .format=GL_RG32F, 
@@ -85,7 +107,7 @@ Frames::Frames(
     ),
     coefficients_tmp(
         {
-            .format=GL_RG32F, 
+            .format=GL_RG32F,
             // .width=(uint32_t)rectangular_root(n_states)[0],
             // .height=(uint32_t)rectangular_root(n_states)[1],
             .width=(uint32_t)get_closest_larger_square(n_states)[0],
@@ -170,7 +192,7 @@ void Frames::reset(int n_states) {
     this->levels = get_levels_wireframe(n_states);
 }
 
-void Simulation::compute_new_energies(sim_2d::SimParams &params) {
+void Simulation::compute_new_energies(const sim_2d::SimParams &params) {
     if (params.numberOfStates != m_coefficients.size()) {
         // printf("Number of states: %d, %d\n", 
         //        params.numberOfStates, m_coefficients.size());
@@ -187,7 +209,7 @@ void Simulation::compute_new_energies(sim_2d::SimParams &params) {
             m_initial_coefficients[i] = 0.0;
             m_coefficients[i] = 0.0;
         }
-        m_initial_coefficients[0] = 1.0;
+        m_initial_coefficients[params.numberOfStates - 1] = 1.0;
     }
     init_energy_states(
         m_energy_eigenvalues, m_energy_eigenstates,
@@ -215,10 +237,10 @@ void Simulation::config_at_start(sim_2d::SimParams &params) {
     m_wave_function = Eigen::VectorXcf(params.gridWidth*params.gridHeight);
     for (int i = 0; i < params.numberOfStates; i++) {
         m_initial_coefficients[i] = 0.0;
-        if (i == 0)
+        if (i == params.numberOfStates - 3)
             m_initial_coefficients[i] 
                 = (1.0 + std::complex<double>(0.0, 1.0))/sqrt(2.0);
-        if (i == 1)
+        if (i == params.numberOfStates - 2)
             m_initial_coefficients[i]
                  = (1.0 + std::complex<double>(0.0, -1.0))/sqrt(2.0);
     }
@@ -229,7 +251,47 @@ void Simulation::config_at_start(sim_2d::SimParams &params) {
     // }
     this->m_potential = Eigen::MatrixXd(params.gridWidth, params.gridHeight);
     this->set_potential_from_string(
-        params, "2.5*(x^2 + y^2)", {});
+        params, "x^2+y^2", {});
+}
+
+void Simulation::use_double_slit_potential(const sim_2d::SimParams &params) {
+    for (int i = 0; i < params.gridHeight; i++) {
+        for (int j = 0; j < params.gridWidth; j++) {
+            double x = ((double)j + 0.5)/(double)params.gridWidth - 0.5;
+            double y = ((double)i + 0.5)/(double)params.gridHeight - 0.5;
+            double val = 0.0;
+            if (y > 0.0 && y < 0.07) // Make a partition
+                val = 10.0;
+            if (x > -0.17 && x < -0.12) // Cut the first slit on the partition
+                val = 0.0;
+            if (x > 0.12 && x < 0.17) // Second slit
+                val = 0.0;
+            m_potential(i, j) = val;
+        }
+    }
+    this->update_potential_tex();
+    this->compute_new_energies(params);
+}
+
+void Simulation::use_heart_potential(const sim_2d::SimParams &params) {
+    double size = 1.4;
+    double height = 5.0;
+    double edge_sharpness = 50.0;
+    for (int i = 0; i < params.gridHeight; i++) {
+        for (int j = 0; j < params.gridWidth; j++) {
+            double x = ((double)j + 0.5)/(double)params.gridWidth - 0.5;
+            double y = ((double)i + 0.5)/(double)params.gridHeight - 0.7;
+            double r = 5.0*sqrt(x*x + y*y);
+            double angle = std::arg(std::complex<double>(y, x));
+            double pi = 3.141592653589793;
+            angle = (angle < 0.0)? angle + 2.0*pi: angle;
+            double s = size*(abs(sin(angle)) + 2.0*exp(-1.2*abs(angle - pi)));
+            double val = height*(tanh(edge_sharpness*(r - s))/2.0 + 0.5); 
+            m_potential(i, j) = val;
+        }
+    }
+    this->update_potential_tex();
+    this->compute_new_energies(params);
 }
 
 void Simulation::modify_stationary_state_coefficient(
@@ -357,8 +419,18 @@ void Simulation::approximate_wavepacket(
     }
 }
 
+void Simulation::update_potential_tex() {
+    std::vector<Vec4> tmp(
+        m_frames.sim_tex_params.width*m_frames.sim_tex_params.height);
+    for (int i = 0; i < m_frames.sim_tex_params.height; i++)
+        for (int j = 0; j < m_frames.sim_tex_params.width; j++)
+            tmp[i*m_frames.sim_tex_params.width + j] 
+                = {.r=(float)m_potential(i, j), .g=0.0, .b=0.0, .a=1.0};
+    this->m_frames.potential.set_pixels((float *)&tmp[0]);
+}
+
 std::map<std::string, double> Simulation::set_potential_from_string(
-    sim_2d::SimParams &params, const std::string &string_val,
+    const sim_2d::SimParams &params, const std::string &string_val,
     std::map<std::string, double> user_params) {
     std::vector<std::string> expr_stack = get_expression_stack(string_val);
     std::vector<std::string> rpn_list = shunting_yard(expr_stack);
@@ -402,6 +474,7 @@ std::map<std::string, double> Simulation::set_potential_from_string(
         }
     }
     this->compute_new_energies(params);
+    this->update_potential_tex();
     return ret_val;
 }
 
@@ -460,6 +533,21 @@ void Simulation::normalize_wave_function(const sim_2d::SimParams &params) {
         norm_val += m_coefficients[i]*conj(m_coefficients[i]);
     for (int i = 0; i < params.numberOfStates; i++)
         m_initial_coefficients[i] /= sqrt(norm_val.real());
+}
+
+void Simulation::set_preset_potential(
+    const sim_2d::SimParams &params, const std::string &val
+) {
+    if (val == "Circle" || val == "circle" || val == "Finite circular well")
+        this->set_potential_from_string(
+            params, "5.0*step(sqrt(x^2 + y^2) - 4.0)", {});
+    else if (val == "Heart" || val == "heart" || val == "Heart well")
+        this->use_heart_potential(params);
+    else if (val == "Barrier with slits" || val == "Double slit")
+        this->use_double_slit_potential(params);
+    else
+        this->set_potential_from_string(params, val, {});
+
 }
 
 double Simulation::measure_energy(const sim_2d::SimParams &params) {
@@ -531,44 +619,106 @@ const RenderTarget& Simulation::view(
             (int)m_frames.main_view_tex_params.height
         }};
         glEnable(GL_DEPTH_TEST);
+        uint32_t program = (params.colorPhase)? 
+            m_programs.surface_domain_color: m_programs.surface_mag_color_map;
+        Uniforms vertex_uniforms = {
+            {"heightTex", &m_frames.wave_func},
+            {"rotation", rotation},
+            {"screenDimensions", screen_dimensions},
+            {"translate", Vec3{.ind{0.0, 0.0, 0.0}}},
+            {"heightScale", params.heightScales[0]/1000.0F},
+            {"scale", scale},
+            {"dimensions2D", 
+                IVec2{.ind{512, 512}}},
+            {"heightDataType", int(1)}
+        };
+        Uniforms domain_color_uniforms {
+            {"tex", &m_frames.wave_func},
+            {"brightness", params.brightness},
+        };
+        Uniforms mag_color_map_uniforms {
+            {"tex", &m_frames.wave_func},
+            {"brightness", params.brightness},
+            {"color", Vec3{.r=1.0, .g=1.0, .b=1.0}},
+        };
+        Uniforms potential_single_color_uniforms {
+            {"color", Vec4{.r=1.0, .g=1.0, .b=1.0, .a=1.0}},
+        };
+        for (const auto &e: vertex_uniforms) {
+            domain_color_uniforms.insert(e);
+            mag_color_map_uniforms.insert(e);
+            potential_single_color_uniforms.insert(e);
+        }
         m_frames.main_render.draw(
-            m_programs.surface,
-            {
-                {"heightTex", &m_frames.wave_func},
-                {"rotation", rotation},
-                {"screenDimensions", screen_dimensions},
-                {"translate", Vec3{.ind{0.0, 0.0, 0.0}}},
-                {"heightScale", 0.001F},
-                {"scale", scale},
-                {"dimensions2D", 
-                    IVec2{.ind{512, 512}}},
-                {"tex", &m_frames.wave_func},
-                {"brightness", params.brightness},
-                {"heightDataType", int(1)}
-            },
+            program,
+            (params.colorPhase)?
+                domain_color_uniforms: mag_color_map_uniforms,
             m_frames.surface,
             Config::viewport(
                 0, 0, 
                 m_frames.main_view_tex_params.height, 
                 m_frames.main_view_tex_params.height)
         );
+        if (params.heightScales[1] > 0.0) { 
+            potential_single_color_uniforms["heightScale"] 
+                = params.heightScales[1]/1000.0F;
+            potential_single_color_uniforms["heightTex"] 
+                = &m_frames.potential;
+            m_frames.main_render.draw(
+                m_programs.surface_single_color,
+                potential_single_color_uniforms,
+                m_frames.surface,
+                Config::viewport(
+                    0, 0, 
+                    m_frames.main_view_tex_params.height, 
+                    m_frames.main_view_tex_params.height)
+            );
+        }
         glDisable(GL_DEPTH_TEST);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     } else {
+        uint32_t program = (params.colorPhase)?
+            m_programs.domain_color: m_programs.mag_color_map;
+        Uniforms domain_color_uniforms = {
+            {"tex", &m_frames.wave_func},
+            {"brightness", float(params.brightness)},
+            {"encodeMagAsBrightness", 1},
+            {"index", 0}
+        };
+        Uniforms mag_color_map_uniforms = {
+            {"tex", &m_frames.wave_func},
+            {"brightness", float(params.brightness)},
+            {"color", Vec3{.r=1.0, .g=1.0, .b=1.0}},
+            {"index", 0}
+        };
         m_frames.main_render.draw(
-            m_programs.domain_color,
-            {
-                {"tex", &m_frames.wave_func},
-                {"brightness", float(params.brightness)},
-                {"encodeMagAsBrightness", 1},
-                {"index", 0}
-            },
+            program,
+            (params.colorPhase)?
+                domain_color_uniforms: mag_color_map_uniforms,
             quad_wire_frame,
             Config::viewport(
                 0, 0, 
                 m_frames.main_view_tex_params.height, 
                 m_frames.main_view_tex_params.height)
         );
+        if (params.brightness2 > 0.0) {
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            m_frames.main_render.draw(
+                m_programs.mag_color_map,
+                {
+                    {"tex", &m_frames.potential},
+                    {"brightness", float(params.brightness2)},
+                    {"color", Vec3{.r=1.0, .g=1.0, .b=1.0}}
+                },
+                quad_wire_frame,
+                Config::viewport(
+                    0, 0, 
+                    m_frames.main_view_tex_params.height, 
+                    m_frames.main_view_tex_params.height)
+            );
+            glDisable(GL_BLEND);
+        }
     }
     float min_level = float(m_energy_eigenvalues[
         params.numberOfStates - 1].real());

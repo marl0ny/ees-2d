@@ -65,7 +65,15 @@ void imgui_controls(void *void_params) {
     if (ImGui::SliderFloat("Time step (a.u.)", &params->dt, 0.0, 0.1))
            s_sim_params_set(params->DT, params->dt);
     ImGui::Checkbox("Negative time step", &params->invertTimeStep);
+    ImGui::Checkbox("Colour phase", &params->colorPhase);
     ImGui::Checkbox("3D view", &params->show3D);
+    ImGui::Text("Surface heights");
+    if (ImGui::SliderFloat("heightScales[0]", &params->heightScales.ind[0], 0.0, 10.0))
+           s_sim_params_set(params->HEIGHT_SCALES, params->heightScales);
+    if (ImGui::SliderFloat("heightScales[1]", &params->heightScales.ind[1], 0.0, 10.0))
+           s_sim_params_set(params->HEIGHT_SCALES, params->heightScales);
+    if (ImGui::SliderFloat("V(x, y) brightness", &params->brightness2, 0.0, 0.5))
+           s_sim_params_set(params->BRIGHTNESS2, params->brightness2);
     ImGui::Text("--------------------------------------------------------------------------------");
     ImGui::Text("Reset parameters");
     ImGui::Text("(Press the 'Reset simulation' button for changes to take effect.)");
@@ -81,6 +89,25 @@ void imgui_controls(void *void_params) {
     if (ImGui::SliderFloat("Mass (a.u.)", &params->m, 0.2, 10.0))
            s_sim_params_set(params->M, params->m);
     ImGui::Text("--------------------------------------------------------------------------------");
+    if (ImGui::BeginMenu("Preset V(x, y)")) {
+        if (ImGui::MenuItem( "x^2 + y^2"))
+            s_selection_set(params->PRESET_POTENTIAL, 0);
+        if (ImGui::MenuItem( "5*(x^2 + y^2)/2"))
+            s_selection_set(params->PRESET_POTENTIAL, 1);
+        if (ImGui::MenuItem( "sqrt(x^2 + y^2)"))
+            s_selection_set(params->PRESET_POTENTIAL, 2);
+        if (ImGui::MenuItem( "x^4 + y^4"))
+            s_selection_set(params->PRESET_POTENTIAL, 3);
+        if (ImGui::MenuItem( "(x+3/2)^2*(x-3/2)^2"))
+            s_selection_set(params->PRESET_POTENTIAL, 4);
+        if (ImGui::MenuItem( "5-5*exp(-(x^2+y^2)/9)"))
+            s_selection_set(params->PRESET_POTENTIAL, 5);
+        if (ImGui::MenuItem( "Finite circular well"))
+            s_selection_set(params->PRESET_POTENTIAL, 6);
+        if (ImGui::MenuItem( "Heart"))
+            s_selection_set(params->PRESET_POTENTIAL, 7);
+        ImGui::EndMenu();
+    }
     ImGui::Text("-5 a.u. ≤ x < 5 a.u.");
     ImGui::Text("-5 a.u. ≤ y < 5 a.u.");
 
