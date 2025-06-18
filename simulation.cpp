@@ -219,7 +219,8 @@ void Simulation::compute_new_energies(const sim_2d::SimParams &params) {
             .width=params.width, .height=params.height,
             .grid_width=params.gridWidth, .grid_height=params.gridHeight,
             .n_states=params.numberOfStates,
-            .laplacian_stencil=params.laplacianStencil.selected
+            .laplacian_stencil=params.laplacianStencil.selected,
+            .global_shift=m_constant_potential
         }
     );
     std::vector<std::complex<float>> energies {};
@@ -249,7 +250,8 @@ void Simulation::config_at_start(sim_2d::SimParams &params) {
     // for (int i = 0; i < params.numberOfStates; i++) {
 
     // }
-    this->m_potential = Eigen::MatrixXd(params.gridWidth, params.gridHeight);
+    m_constant_potential = 0.0;
+    m_potential = Eigen::MatrixXd(params.gridWidth, params.gridHeight);
     this->set_potential_from_string(
         params, "x^2+y^2", {});
 }
@@ -288,6 +290,24 @@ void Simulation::use_heart_potential(const sim_2d::SimParams &params) {
             double s = size*(abs(sin(angle)) + 2.0*exp(-1.2*abs(angle - pi)));
             double val = height*(tanh(edge_sharpness*(r - s))/2.0 + 0.5); 
             m_potential(i, j) = val;
+        }
+    }
+    this->update_potential_tex();
+    this->compute_new_energies(params);
+}
+
+void Simulation::use_triangle_potential(const sim_2d::SimParams &params) {
+    for (int i = 0; i < params.gridHeight; i++) {
+        for (int j = 0; j < params.gridWidth; j++) {
+            double x = ((double)j + 0.5)/(double)params.gridWidth - 0.5;
+            double y = ((double)i + 0.5)/(double)params.gridHeight - 0.5;
+            double l1 = -1.5*x + 0.4;
+            double l2 = 1.5*x + 0.4;
+            double l3 = -0.32;
+            if (y < l1 && y < l2 && y > l3)
+                m_potential(i, j) = 0.0;
+            else
+                m_potential(i, j) = 5.0;
         }
     }
     this->update_potential_tex();
@@ -434,13 +454,8 @@ std::map<std::string, double> Simulation::set_potential_from_string(
     std::map<std::string, double> user_params) {
     std::vector<std::string> expr_stack = get_expression_stack(string_val);
     std::vector<std::string> rpn_list = shunting_yard(expr_stack);
-    // std::cout << "rpn list: \n";
-    // for (auto &e: rpn_list)
-    //     std::cout << e << std::endl;
-    // std::cout << std::endl;
     std::set<std::string> variables 
         = get_variables_from_rpn_list(rpn_list);
-    // std::cout << "variables: \n";
     std::map<std::string, double> variables_values;
     for (auto &variable: variables)
         variables_values.insert({variable, 1.0F});
@@ -450,8 +465,7 @@ std::map<std::string, double> Simulation::set_potential_from_string(
     std::map<std::string, double> ret_val {};
     for (auto &e: variables_values)
         ret_val.insert(e);
-    // variables_values.insert({"x", 0.0});
-    // variables_values.insert({"y", 0.0});
+    double min_val = 0.0;
     for (int i = 0; i < params.gridHeight; i++) {
         for (int j = 0; j < params.gridWidth; j++) {
             double x = params.width 
@@ -461,18 +475,12 @@ std::map<std::string, double> Simulation::set_potential_from_string(
             variables_values.insert_or_assign("x", x);
             variables_values.insert_or_assign("y", y);
             double val = compute_expression(rpn_list, variables_values);
-            // if (i == params.gridWidth - 1
-            //     && j == params.gridHeight - 1) {
-            //     std::cout << "Expression: " << string_val << std::endl;
-            //     std::cout << "Variables: " << std::endl;
-            //     for (auto &e: variables_values) {
-            //         std::cout << e.first << ": " << e.second << std::endl;
-            //     }
-            //     std::cout << "Value: " << val << std::endl;
-            // }
+            min_val = (i == 0 && j == 0)? val: ((val < min_val)? val: min_val);
             m_potential(i, j) = val;
         }
     }
+    if (min_val < 0.0)
+        this->m_constant_potential = abs(min_val);
     this->compute_new_energies(params);
     this->update_potential_tex();
     return ret_val;
@@ -497,6 +505,7 @@ void Simulation::time_step(sim_2d::SimParams &params) {
     double t = params.t;
     for (int k = 0; k < params.numberOfStates; k++) {
         std::complex<double> energy = m_energy_eigenvalues[k];
+        energy -= m_constant_potential;
         std::complex<double> i (std::complex<double> (0.0, 1.0));
         m_coefficients(k) 
             = m_initial_coefficients(k)*std::exp(-i*energy*t/hbar);
@@ -545,6 +554,17 @@ void Simulation::set_preset_potential(
         this->use_heart_potential(params);
     else if (val == "Barrier with slits" || val == "Double slit")
         this->use_double_slit_potential(params);
+    else if (val == "Triangle")
+        this->use_triangle_potential(params);
+    else if (val == "Four overlapping wells")
+        this->set_potential_from_string(params,
+            "-20*("
+            " exp(-0.5*((x+2.5)^2+y^2)/1.45)"
+            "+exp(-0.5*((x-2.5)^2+y^2)/1.45)"
+            "+exp(-0.5*(x^2+(y-2.5)^2)/1.45)"
+            "+exp(-0.5*(x^2+(y+2.5)^2)/1.45)"
+            ")",
+            {});
     else
         this->set_potential_from_string(params, val, {});
 
@@ -661,9 +681,10 @@ const RenderTarget& Simulation::view(
         );
         if (params.heightScales[1] > 0.0) { 
             potential_single_color_uniforms["heightScale"] 
-                = params.heightScales[1]/1000.0F;
+                = params.heightScales[1]/500.0F;
             potential_single_color_uniforms["heightTex"] 
                 = &m_frames.potential;
+            potential_single_color_uniforms["heightDataType"] = 0;
             m_frames.main_render.draw(
                 m_programs.surface_single_color,
                 potential_single_color_uniforms,

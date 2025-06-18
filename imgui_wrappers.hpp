@@ -66,8 +66,8 @@ void imgui_controls(void *void_params) {
            s_sim_params_set(params->DT, params->dt);
     ImGui::Checkbox("Negative time step", &params->invertTimeStep);
     ImGui::Checkbox("Colour phase", &params->colorPhase);
-    ImGui::Checkbox("3D view", &params->show3D);
-    ImGui::Text("Surface heights");
+    ImGui::Checkbox("3D plot", &params->show3D);
+    ImGui::Text("Plot heights");
     if (ImGui::SliderFloat("heightScales[0]", &params->heightScales.ind[0], 0.0, 10.0))
            s_sim_params_set(params->HEIGHT_SCALES, params->heightScales);
     if (ImGui::SliderFloat("heightScales[1]", &params->heightScales.ind[1], 0.0, 10.0))
@@ -96,16 +96,34 @@ void imgui_controls(void *void_params) {
             s_selection_set(params->PRESET_POTENTIAL, 1);
         if (ImGui::MenuItem( "sqrt(x^2 + y^2)"))
             s_selection_set(params->PRESET_POTENTIAL, 2);
-        if (ImGui::MenuItem( "x^4 + y^4"))
+        if (ImGui::MenuItem( "abs(x)"))
             s_selection_set(params->PRESET_POTENTIAL, 3);
-        if (ImGui::MenuItem( "(x+3/2)^2*(x-3/2)^2"))
+        if (ImGui::MenuItem( "x^4 + y^4"))
             s_selection_set(params->PRESET_POTENTIAL, 4);
-        if (ImGui::MenuItem( "5-5*exp(-(x^2+y^2)/9)"))
+        if (ImGui::MenuItem( "(x+3/2)^2*(x-3/2)^2"))
             s_selection_set(params->PRESET_POTENTIAL, 5);
-        if (ImGui::MenuItem( "Finite circular well"))
+        if (ImGui::MenuItem( "5-5*exp(-(x^2+y^2)/9)"))
             s_selection_set(params->PRESET_POTENTIAL, 6);
-        if (ImGui::MenuItem( "Heart"))
+        if (ImGui::MenuItem( "9-9*exp(-(x^2+y^2)/4)"))
             s_selection_set(params->PRESET_POTENTIAL, 7);
+        if (ImGui::MenuItem( "-10*exp(-(x^2+y^2)/4)"))
+            s_selection_set(params->PRESET_POTENTIAL, 8);
+        if (ImGui::MenuItem( "Finite circular well"))
+            s_selection_set(params->PRESET_POTENTIAL, 9);
+        if (ImGui::MenuItem( "Heart"))
+            s_selection_set(params->PRESET_POTENTIAL, 10);
+        if (ImGui::MenuItem( "Triangle"))
+            s_selection_set(params->PRESET_POTENTIAL, 11);
+        if (ImGui::MenuItem( "Four overlapping wells"))
+            s_selection_set(params->PRESET_POTENTIAL, 12);
+        if (ImGui::MenuItem( "log(sqrt(x^2+y^2))"))
+            s_selection_set(params->PRESET_POTENTIAL, 13);
+        if (ImGui::MenuItem( "-log(sqrt(x^2+y^2))"))
+            s_selection_set(params->PRESET_POTENTIAL, 14);
+        if (ImGui::MenuItem( "-1/(sqrt(x^2+y^2))"))
+            s_selection_set(params->PRESET_POTENTIAL, 15);
+        if (ImGui::MenuItem( "1/(sqrt(x^2+y^2))"))
+            s_selection_set(params->PRESET_POTENTIAL, 16);
         ImGui::EndMenu();
     }
     ImGui::Text("-5 a.u. ≤ x < 5 a.u.");

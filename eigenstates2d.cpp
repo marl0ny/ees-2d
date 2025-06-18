@@ -20,6 +20,7 @@ static void construct_hamiltonian_2nd_order_5_pt(
     double hbar = params.hbar;
     int grid_height = params.grid_height;
     int grid_width = params.grid_width;
+    double global_shift = params.global_shift;
     double m = params.m;
     for (int i = 0; i < grid_height; i++) {
         for (int j = 0; j < grid_width; j++) {
@@ -28,9 +29,10 @@ static void construct_hamiltonian_2nd_order_5_pt(
             double l = (-hbar*hbar/(2.0*m))/(dx*dx);
             double r = (-hbar*hbar/(2.0*m))/(dx*dx);
             double c = (-hbar*hbar/(2.0*m))*(-2.0/(dx*dx) - 2.0/(dy*dy));
+            double potential_val = potential(i, j) + global_shift;
             triplets.push_back(Triplet<double>(i*grid_width + j, 
                                                i*grid_width + j, 
-                                               c + potential(i, j)));
+                                               c + potential_val));
             if (i < grid_height-1) triplets.push_back(
                 Triplet<double>(i*grid_width + j, (i + 1)*grid_width + j, u));
             if (i > 0) triplets.push_back(
@@ -64,8 +66,10 @@ static void construct_hamiltonian_4th_order_9_pt(
     int grid_height = params.grid_height;
     int grid_width = params.grid_width;
     double m = params.m;
+    double global_shift = params.global_shift;
     for (int i = 0; i < grid_height; i++) {
         for (int j = 0; j < grid_width; j++) {
+            double potential_val = potential(i, j) + global_shift;
             double c0 = 0.0;
             // if (j >= 2 && j < grid_width - 2) {
             double l2 = (-hbar*hbar/(2.0*m))*(-1.0/12.0)/(dx*dx);
@@ -73,7 +77,7 @@ static void construct_hamiltonian_4th_order_9_pt(
             double r2 = (-hbar*hbar/(2.0*m))*(-1.0/12.0)/(dx*dx);
             double r1 = (-hbar*hbar/(2.0*m))*(4.0/3.0)/(dx*dx);
             c0 += (-hbar*hbar/(2.0*m))*(-5.0/2.0)/(dx*dx);
-            c0 += potential(i, j);
+            c0 += potential_val;
             if (j >= 2)
                 setAt(triplets, grid_width,
                     i, j, i, j-2, l2);

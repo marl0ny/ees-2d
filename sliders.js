@@ -247,8 +247,8 @@ createScalarParameterSlider(controls, 3, "Time step (a.u.)", "float", {'value': 
 createCheckbox(controls, 4, "Negative time step", false);
 createButton(controls, 5, "Normalize wave function");
 createCheckbox(controls, 6, "Colour phase", true);
-createCheckbox(controls, 7, "3D view", false);
-createVectorParameterSliders(controls, 8, "Surface heights", "Vec2", {'value': [1.0, 0.0], 'min': [0.0, 0.0], 'max': [10.0, 10.0], 'step': [0.1, 0.1]});
+createCheckbox(controls, 7, "3D plot", false);
+createVectorParameterSliders(controls, 8, "Plot heights", "Vec2", {'value': [1.0, 0.0], 'min': [0.0, 0.0], 'max': [10.0, 10.0], 'step': [0.1, 0.1]});
 createScalarParameterSlider(controls, 9, "V(x, y) brightness", "float", {'value': 0.01, 'min': 0.0, 'max': 0.5, 'step': 0.01});
 createLineDivider(controls);
 createLabel(controls, 14, "Reset parameters", "color:white; font-family:Arial, Helvetica, sans-serif; font-weight: bold;");
@@ -258,7 +258,7 @@ createSelectionList(controls, 17, 1, "Laplacian discretization", [ "2nd order 5 
 createScalarParameterSlider(controls, 20, "Mass (a.u.)", "float", {'value': 1.0, 'min': 0.2, 'max': 10.0, 'step': 0.01});
 createButton(controls, 21,  "Reset simulation", "color:black; font-family:Arial, Helvetica, sans-serif; font-weight: bold;");
 createLineDivider(controls);
-createSelectionList(controls, 23, 0, "Preset V(x, y)", [ "x^2 + y^2",  "5*(x^2 + y^2)/2",  "sqrt(x^2 + y^2)",  "x^4 + y^4",  "(x+3/2)^2*(x-3/2)^2",  "5-5*exp(-(x^2+y^2)/9)",  "Finite circular well",  "Heart"]);
+createSelectionList(controls, 23, 0, "Preset V(x, y)", [ "x^2 + y^2",  "5*(x^2 + y^2)/2",  "sqrt(x^2 + y^2)",  "abs(x)",  "x^4 + y^4",  "(x+3/2)^2*(x-3/2)^2",  "5-5*exp(-(x^2+y^2)/9)",  "9-9*exp(-(x^2+y^2)/4)",  "-10*exp(-(x^2+y^2)/4)",  "Finite circular well",  "Heart",  "Triangle",  "Four overlapping wells",  "log(sqrt(x^2+y^2))",  "-log(sqrt(x^2+y^2))",  "-1/(sqrt(x^2+y^2))",  "1/(sqrt(x^2+y^2))"]);
 createEntryBoxes(controls, 24, "Text edit V(x, y)", 1, []);
 createButton(controls, 25, "Enter modified potential");
 createLabel(controls, 26, "-5 a.u. ≤ x < 5 a.u.", "");

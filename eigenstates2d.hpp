@@ -15,6 +15,7 @@ struct InitEnergyStatesParams {
     };
     double hbar, m;
     double width, height;
+    double global_shift;
     int grid_width, grid_height;
     int n_states;
     int laplacian_stencil;

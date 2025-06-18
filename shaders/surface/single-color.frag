@@ -11,8 +11,8 @@ precision highp float;
     
 #if __VERSION__ <= 120
 varying vec2 UV;
-varying vec3 FINAL_VERTEX_POSITION;
 varying vec3 NORMAL;
+varying vec3 FINAL_VERTEX_POSITION;
 #define fragColor gl_FragColor
 #else
 in vec2 UV;
@@ -24,6 +24,9 @@ out vec4 fragColor;
 uniform vec4 color;
 
 void main() {
+    if (abs(FINAL_VERTEX_POSITION.x) > 2.0 || abs(FINAL_VERTEX_POSITION.y) > 2.0 ||
+        abs(FINAL_VERTEX_POSITION.z) > 2.0)
+        discard;
     vec3 lightSourceLoc = vec3(0.0, 0.0, -3.0);
     vec3 vertexToLightSource = lightSourceLoc - FINAL_VERTEX_POSITION;
     float diffuse1 = max(dot(NORMAL, normalize(vertexToLightSource)), 0.0);

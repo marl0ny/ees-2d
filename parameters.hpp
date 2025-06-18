@@ -46,7 +46,7 @@ struct NotUsed {};
     float m = (float)(1.0F);
     Button simResetButton = Button{};
     LineDivider lineDivider2 = LineDivider{};
-    SelectionList presetPotential = SelectionList{0, {"x^2 + y^2", "5*(x^2 + y^2)/2", "sqrt(x^2 + y^2)", "x^4 + y^4", "(x+3/2)^2*(x-3/2)^2", "5-5*exp(-(x^2+y^2)/9)", "Finite circular well", "Heart"}};
+    SelectionList presetPotential = SelectionList{0, {"x^2 + y^2", "5*(x^2 + y^2)/2", "sqrt(x^2 + y^2)", "abs(x)", "x^4 + y^4", "(x+3/2)^2*(x-3/2)^2", "5-5*exp(-(x^2+y^2)/9)", "9-9*exp(-(x^2+y^2)/4)", "-10*exp(-(x^2+y^2)/4)", "Finite circular well", "Heart", "Triangle", "Four overlapping wells", "log(sqrt(x^2+y^2))", "-log(sqrt(x^2+y^2))", "-1/(sqrt(x^2+y^2))", "1/(sqrt(x^2+y^2))"}};
     EntryBoxes scalarPotential = EntryBoxes{"0"};
     Button enterScalarPotential = Button{};
     Label xRangeLabel = Label{};

@@ -43,6 +43,7 @@ struct Programs {
 class Simulation {
     Programs m_programs;
     Frames m_frames;
+    double m_constant_potential;
     Eigen::MatrixXd m_potential;
     Eigen::VectorXcf m_wave_function;
     Eigen::VectorXcd m_initial_coefficients;
@@ -53,6 +54,7 @@ class Simulation {
     void config_at_start(sim_2d::SimParams &params);
     void use_heart_potential(const sim_2d::SimParams &params);
     void use_double_slit_potential(const sim_2d::SimParams &params);
+    void use_triangle_potential(const sim_2d::SimParams &params);
     void update_potential_tex();
     public:
     Simulation(int window_width, int window_height, sim_2d::SimParams params);
