@@ -55,6 +55,9 @@ class Simulation {
     void use_heart_potential(const sim_2d::SimParams &params);
     void use_double_slit_potential(const sim_2d::SimParams &params);
     void use_triangle_potential(const sim_2d::SimParams &params);
+    void use_pentagon_potential(const sim_2d::SimParams &params);
+    void use_octagon_potential(const sim_2d::SimParams &params);
+    void use_hexagon_potential(const sim_2d::SimParams &params);
     void update_potential_tex();
     public:
     Simulation(int window_width, int window_height, sim_2d::SimParams params);
@@ -75,14 +78,18 @@ class Simulation {
         sim_2d::SimParams &params,
         Vec2 cursor_pos1, Vec2 cursor_pos2
     );
+    void set_preset_potential(
+        const sim_2d::SimParams &param, const std::string &val);
     std::map<std::string, double> set_potential_from_string(
         const sim_2d::SimParams &param,
         const std::string &val,
         std::map<std::string, double> user_params
     );
+    void set_potential_from_image(
+        const sim_2d::SimParams &param, const uint8_t *image_data,
+        IVec2 image_dimensions
+    );
     void normalize_wave_function(const sim_2d::SimParams &param);
-    void set_preset_potential(
-        const sim_2d::SimParams &param, const std::string &val);
     double measure_energy(const sim_2d::SimParams &params);
 };
 

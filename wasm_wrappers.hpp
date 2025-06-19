@@ -18,6 +18,8 @@ static std::function<std::string(int)>
     s_user_edit_get_comma_separated_variables;
 static std::function<void(int)> s_button_pressed;
 static std::function<void(int, int)> s_selection_set;
+static std::function<void(
+    int, const std::string &image_data, int, int)> s_image_set;
 static std::function<void(int, std::string, float)>
     s_sim_params_set_user_float_param;
 
@@ -65,6 +67,11 @@ getting non-primitive objects to be passed between JS/C++.
 
 void set_int_param(int param_code, int i) {
     s_sim_params_set(param_code, Uniform((int)i));
+}
+
+int get_int_param(int param_code) {
+    Uniform u = s_sim_params_get(param_code);
+    return u.i32;
 }
 
 void set_float_param(int param_code, float f) {
@@ -131,6 +138,12 @@ void selection_set(int param_code, int value) {
     s_selection_set(param_code, value);
 }
 
+void image_set(
+    int param_code, const std::string &image_data,
+    int width, int height) {
+    s_image_set(param_code, image_data, width, height);
+}
+
 // void set_mouse_mode(int type) {
 //     s_input_type = type;
 // }
@@ -151,6 +164,7 @@ bool outside_gui() {
 EMSCRIPTEN_BINDINGS(my_module) {
     emscripten::function("set_float_param", set_float_param);
     emscripten::function("set_int_param", set_int_param);
+    emscripten::function("get_int_param", get_int_param);
     emscripten::function("set_bool_param", set_bool_param);
     emscripten::function("set_vec_param", set_vec_param);
     emscripten::function("set_ivec_param", set_ivec_param);
@@ -161,6 +175,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
              user_edit_get_comma_separated_variables);
     emscripten::function("button_pressed", button_pressed);
     emscripten::function("selection_set", selection_set);
+    emscripten::function("image_set", image_set, allow_raw_pointers());
     emscripten::function("set_user_float_param", set_user_float_param);
 }
 #endif

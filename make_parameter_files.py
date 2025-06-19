@@ -16,7 +16,7 @@ def camel_to_snake(camel: str, scream: bool = False) -> str:
     return ''.join(snake_list)
 
 
-SLIDER_JS_START = """
+SLIDER_JS_FUNCTIONS = """
 function createScalarParameterSlider(
     controls, enumCode, sliderLabelName, type, spec) {
     let label = document.createElement("label");
@@ -150,6 +150,76 @@ function createSelectionList(
     controls.appendChild(document.createElement("br"));
 }
 
+function createUploadImage(
+    controls, enumCode, name, w_code, h_code
+) {
+    let label = document.createElement("label");
+    label.style = "color:white; font-family:Arial, Helvetica, sans-serif";
+    label.textContent = name;
+    controls.appendChild(label);
+    controls.appendChild(document.createElement("br"));
+    // im.id = `image-${enumCode}`;
+    let uploadImage = document.createElement("input");
+    uploadImage.type = "file";
+    let im = document.createElement("img");
+    im.hidden = true;
+    let imCanvas = document.createElement("canvas");
+    imCanvas.hidden = true;
+    controls.appendChild(uploadImage);
+    // controls.appendChild(document.createElement("br"));
+    controls.appendChild(im);
+    // controls.appendChild(document.createElement("br"));
+    controls.appendChild(imCanvas);
+    // controls.appendChild(document.createElement("br"));
+    uploadImage.addEventListener(
+        "change", () => {
+            console.log("image uploaded");
+            const reader = new FileReader();
+            reader.onload = e => {
+                im.src = e.target.result;
+            }
+            let loadImageToPotentialFunc = () => {
+                let ctx = imCanvas.getContext("2d");
+                let width = Module.get_int_param(ENUM_CODES[w_code]);
+                let height = Module.get_int_param(ENUM_CODES[h_code]);
+                let imW = im.width;
+                let imH = im.height;
+                imCanvas.setAttribute("width", width);
+                imCanvas.setAttribute("height", height);
+                let heightOffset = 0;
+                let widthOffset = 0;
+                if (imW/imH >= width/height) {
+                    let ratio = (imW/imH)/(width/height);
+                    widthOffset = parseInt(0.5*width*(1.0 - ratio));
+                    ctx.drawImage(im, widthOffset, heightOffset,
+                                width*(imW/imH)/(width/height), height);
+                } else {
+                    let ratio = (imH/imW)/(height/width);
+                    heightOffset = parseInt(0.5*height*(1.0 - ratio));
+                    ctx.drawImage(im, widthOffset, heightOffset,
+                                width, (imH/imW)/(height/width)*height);
+                }
+                let data = ctx.getImageData(0, 0, width, height).data;
+                Module.image_set(
+                    enumCode, data, width, height);
+            }
+            let promiseFunc = () => {
+                if (im.width === 0 && im.height === 0) {
+                    let p = new Promise(() => setTimeout(promiseFunc, 10));
+                    return Promise.resolve(p);
+                } else {
+                    loadImageToPotentialFunc();
+                }
+            }
+            reader.onloadend = () => {
+                let p = new Promise(() => setTimeout(promiseFunc, 10));
+                Promise.resolve(p);
+            }
+            reader.readAsDataURL(uploadImage.files[0]);
+        }
+    );
+}
+
 let gUserParams = {};
 
 function modifyUserSliders(enumCode, variableList) {
@@ -262,10 +332,15 @@ function createLineDivider(controls) {
 """
 
 def write_sliders_js(parameters, dst_file_name):
-    file_contents = ""
-    file_contents += SLIDER_JS_START
-    file_contents += "let controls = document.getElementById('controls');\n"
     parameters = {k: parameters[k] for k in parameters if k[0:2] != '__'}
+    file_contents = ""
+    enum_codes = "const ENUM_CODES = {\n"
+    for i, k in enumerate(parameters.keys()):
+        enum_codes += f"    {camel_to_snake(k, scream=True)}: {i},\n"
+    enum_codes += "};\n"
+    file_contents += enum_codes
+    file_contents += SLIDER_JS_FUNCTIONS
+    file_contents += "let controls = document.getElementById('controls');\n"
     for i, k in enumerate(parameters.keys()):
         parameter = parameters[k]
         type_ = parameter["type"]
@@ -293,6 +368,10 @@ def write_sliders_js(parameters, dst_file_name):
                 file_contents += f'{val}' \
                     + (', ' if i != len(list_val) - 1 else '')
             file_contents += ']);\n'
+        if parameter['type'] == 'UploadImage':
+            width, height = parameter["width"], parameter["height"]
+            file_contents += 'createUploadImage('\
+                + f'controls, {i}, \"{name}\", \"{width}\", \"{height}\");\n'
         if parameter['type'] == 'Button':
             if "style" in parameter:
                 file_contents += \
@@ -413,15 +492,16 @@ def write_typed_sim_parameters_hpp(parameters, name_space, dst_file_name):
     file_contents = HEADER_START.format(name_space, '{')
     file_contents += "\n#ifndef _PARAMETERS_\n#define _PARAMETERS_\n"
     file_contents += "\nstruct Button {};\n"
+    file_contents += "\nstruct UploadImage {};\n"
     file_contents += "\ntypedef std::string Label;\n"
     file_contents += "\ntypedef bool BoolRecord;\n"
     file_contents += "\ntypedef std::vector<std::string> EntryBoxes;\n"
     file_contents += "\nstruct SelectionList {\n"
     file_contents += "    int selected;\n"
     file_contents += "    std::vector<std::string> options;\n};\n"
-    file_contents += "\nstruct SimParams {\n"
     file_contents += "\nstruct LineDivider {};\n"
     file_contents += "\nstruct NotUsed {};\n"
+    file_contents += "\nstruct SimParams {\n"
     parameters = {k: parameters[k] for k in parameters if k[0:2] != '__'}
     for k in parameters.keys():
         parameter = parameters[k]

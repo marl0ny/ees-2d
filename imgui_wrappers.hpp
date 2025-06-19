@@ -86,6 +86,10 @@ void imgui_controls(void *void_params) {
             s_selection_set(params->LAPLACIAN_STENCIL, 1);
         ImGui::EndMenu();
     }
+    if (ImGui::SliderInt("Grid width", &params->gridWidth, 32, 256))
+            s_sim_params_set(params->GRID_WIDTH, params->gridWidth);
+    if (ImGui::SliderInt("Grid height", &params->gridHeight, 32, 256))
+            s_sim_params_set(params->GRID_HEIGHT, params->gridHeight);
     if (ImGui::SliderFloat("Mass (a.u.)", &params->m, 0.2, 10.0))
            s_sim_params_set(params->M, params->m);
     ImGui::Text("--------------------------------------------------------------------------------");
@@ -102,32 +106,40 @@ void imgui_controls(void *void_params) {
             s_selection_set(params->PRESET_POTENTIAL, 4);
         if (ImGui::MenuItem( "(x+3/2)^2*(x-3/2)^2"))
             s_selection_set(params->PRESET_POTENTIAL, 5);
-        if (ImGui::MenuItem( "5-5*exp(-(x^2+y^2)/9)"))
-            s_selection_set(params->PRESET_POTENTIAL, 6);
-        if (ImGui::MenuItem( "9-9*exp(-(x^2+y^2)/4)"))
-            s_selection_set(params->PRESET_POTENTIAL, 7);
         if (ImGui::MenuItem( "-10*exp(-(x^2+y^2)/4)"))
-            s_selection_set(params->PRESET_POTENTIAL, 8);
+            s_selection_set(params->PRESET_POTENTIAL, 6);
         if (ImGui::MenuItem( "Finite circular well"))
-            s_selection_set(params->PRESET_POTENTIAL, 9);
+            s_selection_set(params->PRESET_POTENTIAL, 7);
         if (ImGui::MenuItem( "Heart"))
-            s_selection_set(params->PRESET_POTENTIAL, 10);
+            s_selection_set(params->PRESET_POTENTIAL, 8);
         if (ImGui::MenuItem( "Triangle"))
+            s_selection_set(params->PRESET_POTENTIAL, 9);
+        if (ImGui::MenuItem( "Pentagon"))
+            s_selection_set(params->PRESET_POTENTIAL, 10);
+        if (ImGui::MenuItem( "Hexagon"))
             s_selection_set(params->PRESET_POTENTIAL, 11);
-        if (ImGui::MenuItem( "Four overlapping wells"))
+        if (ImGui::MenuItem( "Octagon"))
             s_selection_set(params->PRESET_POTENTIAL, 12);
-        if (ImGui::MenuItem( "log(sqrt(x^2+y^2))"))
+        if (ImGui::MenuItem( "Four overlapping wells"))
             s_selection_set(params->PRESET_POTENTIAL, 13);
-        if (ImGui::MenuItem( "-log(sqrt(x^2+y^2))"))
+        if (ImGui::MenuItem( "log(sqrt(x^2+y^2))"))
             s_selection_set(params->PRESET_POTENTIAL, 14);
-        if (ImGui::MenuItem( "-1/(sqrt(x^2+y^2))"))
+        if (ImGui::MenuItem( "-log(sqrt(x^2+y^2))"))
             s_selection_set(params->PRESET_POTENTIAL, 15);
-        if (ImGui::MenuItem( "1/(sqrt(x^2+y^2))"))
+        if (ImGui::MenuItem( "-1/(sqrt(x^2+y^2))"))
             s_selection_set(params->PRESET_POTENTIAL, 16);
+        if (ImGui::MenuItem( "1/(sqrt(x^2+y^2))"))
+            s_selection_set(params->PRESET_POTENTIAL, 17);
         ImGui::EndMenu();
     }
     ImGui::Text("-5 a.u. ≤ x < 5 a.u.");
     ImGui::Text("-5 a.u. ≤ y < 5 a.u.");
+    if (ImGui::BeginMenu("Boundary conditions")) {
+        if (ImGui::MenuItem( "V=+oo beyond boundaries"))
+            s_selection_set(params->BOUNDARY_CONDITIONS, 0);
+        ImGui::EndMenu();
+    }
+    ImGui::Text("(May look pixelated unless image dimensions are approximately equal to the simulation's grid size.)");
 
 }
 

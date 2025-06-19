@@ -193,6 +193,15 @@ void Frames::reset(int n_states) {
 }
 
 void Simulation::compute_new_energies(const sim_2d::SimParams &params) {
+    if (params.gridWidth != this->m_potential.cols() ||
+        params.gridHeight != this->m_potential.rows()) {
+        m_wave_function = Eigen::VectorXcf(params.gridWidth*params.gridHeight);
+        m_potential = Eigen::MatrixXd(params.gridHeight, params.gridWidth);
+        m_frames.sim_tex_params.width = params.gridWidth;
+        m_frames.sim_tex_params.height = params.gridHeight;
+        m_frames.wave_func.reset(m_frames.sim_tex_params);
+        m_frames.potential.reset(m_frames.sim_tex_params);
+    }
     if (params.numberOfStates != m_coefficients.size()) {
         // printf("Number of states: %d, %d\n", 
         //        params.numberOfStates, m_coefficients.size());
@@ -251,7 +260,7 @@ void Simulation::config_at_start(sim_2d::SimParams &params) {
 
     // }
     m_constant_potential = 0.0;
-    m_potential = Eigen::MatrixXd(params.gridWidth, params.gridHeight);
+    m_potential = Eigen::MatrixXd(params.gridHeight, params.gridWidth);
     this->set_potential_from_string(
         params, "x^2+y^2", {});
 }
@@ -308,6 +317,72 @@ void Simulation::use_triangle_potential(const sim_2d::SimParams &params) {
                 m_potential(i, j) = 0.0;
             else
                 m_potential(i, j) = 5.0;
+        }
+    }
+    this->update_potential_tex();
+    this->compute_new_energies(params);
+}
+
+void Simulation::use_pentagon_potential(const sim_2d::SimParams &params) {
+    for (int i = 0; i < params.gridHeight; i++) {
+        for (int j = 0; j < params.gridWidth; j++) {
+            double x 
+                = (1.0/0.9)*((double)j + 0.5)/(double)params.gridWidth - 0.05;
+            double y
+                = (1.0/0.9)*((double)i + 0.5)/(double)params.gridHeight - 0.05;
+            double l1 = x + 0.5;
+            double l2 = -x + 3.0/2.0;
+            double l3 = -2.0*x + 0.5;
+            double l4 = 2.0*x - 3.0/2.0;
+            if (y < l1 && y < l2 && y > l3 && y > l4 
+                && x > 0.0 && x < 1.0 && y < 1.0 && y > 0.0)
+                m_potential(i, j) = 0.0;
+            else
+                m_potential(i, j) = 10.0;
+        }
+    }
+    this->update_potential_tex();
+    this->compute_new_energies(params);
+}
+
+void Simulation::use_hexagon_potential(const sim_2d::SimParams &params) {
+    for (int i = 0; i < params.gridHeight; i++) {
+        for (int j = 0; j < params.gridWidth; j++) {
+            double x 
+                = (1.0/0.9)*((double)j + 0.5)/(double)params.gridWidth - 0.05;
+            double y
+                = (1.0/0.9)*((double)i + 0.5)/(double)params.gridHeight - 0.05;
+            double l1 = 3.0*x/2.0 + 0.5;
+            double l2 = -3.0*x/2.0 + 2.0;
+            double l3 = -3.0*x/2.0 + 0.5;
+            double l4 = 3.0*x/2.0 - 1.0;
+            if (y < l1 && y < l2 && y > l3 && y > l4 
+                && x > 0.0 && x < 1.0 && y < 1.0 && y > 0.0)
+                m_potential(i, j) = 0.0;
+            else
+                m_potential(i, j) = 10.0;
+        }
+    }
+    this->update_potential_tex();
+    this->compute_new_energies(params);
+}
+
+void Simulation::use_octagon_potential(const sim_2d::SimParams &params) {
+    for (int i = 0; i < params.gridHeight; i++) {
+        for (int j = 0; j < params.gridWidth; j++) {
+            double x 
+                = (1.0/0.9)*((double)j + 0.5)/(double)params.gridWidth - 0.05;
+            double y
+                = (1.0/0.9)*((double)i + 0.5)/(double)params.gridHeight - 0.05;
+            double l1 = x + 2.0/3.0;
+            double l2 = -x + 5.0/3.0;
+            double l3 = x - 2.0/3.0;
+            double l4 = -x + 1.0/3.0;
+            if (y < l1 && y < l2 && y > l3 && y > l4 
+                && x > 0.0 && x < 1.0 && y < 1.0 && y > 0.0)
+                m_potential(i, j) = 0.0;
+            else
+                m_potential(i, j) = 10.0;
         }
     }
     this->update_potential_tex();
@@ -486,6 +561,26 @@ std::map<std::string, double> Simulation::set_potential_from_string(
     return ret_val;
 }
 
+void Simulation::set_potential_from_image(
+    const sim_2d::SimParams &params, 
+    const uint8_t *image_data, IVec2 image_dimensions) { 
+    int w = image_dimensions[0];
+    int h = image_dimensions[1];
+    for (int i = 0; i < h; i++) {
+        for (int j = 0; j < w; j++) {
+            int pix_ind = i*w + j;
+            double r = (double)image_data[4*pix_ind];
+            double g = (double)image_data[4*pix_ind + 1];
+            double b = (double)image_data[4*pix_ind + 2];
+            double mono_val = sqrt(r*r + g*g + b*b)/8.0;
+            if (i < params.gridWidth && j < params.gridHeight)
+                m_potential(params.gridHeight - i - 1, j) = mono_val;
+        }
+    }
+    this->compute_new_energies(params);
+    this->update_potential_tex();
+}
+
 Simulation::Simulation(int window_width, int window_height, sim_2d::SimParams params):
     m_programs(),
     m_frames(
@@ -556,6 +651,12 @@ void Simulation::set_preset_potential(
         this->use_double_slit_potential(params);
     else if (val == "Triangle")
         this->use_triangle_potential(params);
+    else if (val == "Pentagon")
+        this->use_pentagon_potential(params);
+    else if (val == "Hexagon")
+        this->use_hexagon_potential(params);
+    else if (val == "Octagon")
+        this->use_octagon_potential(params);
     else if (val == "Four overlapping wells")
         this->set_potential_from_string(params,
             "-20*("

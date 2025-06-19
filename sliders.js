@@ -1,3 +1,36 @@
+const ENUM_CODES = {
+    STEPS_PER_FRAME: 0,
+    BRIGHTNESS: 1,
+    T: 2,
+    DT: 3,
+    INVERT_TIME_STEP: 4,
+    NORMALIZE_WAVE_FUNCTION: 5,
+    COLOR_PHASE: 6,
+    SHOW3_D: 7,
+    HEIGHT_SCALES: 8,
+    BRIGHTNESS2: 9,
+    HBAR: 10,
+    WIDTH: 11,
+    HEIGHT: 12,
+    LINE_DIVIDER1: 13,
+    SIM_RESET_LABEL: 14,
+    SIM_RESET_LABEL_SUBTEXT: 15,
+    NUMBER_OF_STATES: 16,
+    LAPLACIAN_STENCIL: 17,
+    GRID_WIDTH: 18,
+    GRID_HEIGHT: 19,
+    M: 20,
+    SIM_RESET_BUTTON: 21,
+    LINE_DIVIDER2: 22,
+    PRESET_POTENTIAL: 23,
+    SCALAR_POTENTIAL: 24,
+    ENTER_SCALAR_POTENTIAL: 25,
+    X_RANGE_LABEL: 26,
+    Y_RANGE_LABEL: 27,
+    BOUNDARY_CONDITIONS: 28,
+    IMAGE_POTENTIAL: 29,
+    IMAGE_POTENTIAL_LABEL: 30,
+};
 
 function createScalarParameterSlider(
     controls, enumCode, sliderLabelName, type, spec) {
@@ -132,6 +165,76 @@ function createSelectionList(
     controls.appendChild(document.createElement("br"));
 }
 
+function createUploadImage(
+    controls, enumCode, name, w_code, h_code
+) {
+    let label = document.createElement("label");
+    label.style = "color:white; font-family:Arial, Helvetica, sans-serif";
+    label.textContent = name;
+    controls.appendChild(label);
+    controls.appendChild(document.createElement("br"));
+    // im.id = `image-${enumCode}`;
+    let uploadImage = document.createElement("input");
+    uploadImage.type = "file";
+    let im = document.createElement("img");
+    im.hidden = true;
+    let imCanvas = document.createElement("canvas");
+    imCanvas.hidden = true;
+    controls.appendChild(uploadImage);
+    // controls.appendChild(document.createElement("br"));
+    controls.appendChild(im);
+    // controls.appendChild(document.createElement("br"));
+    controls.appendChild(imCanvas);
+    // controls.appendChild(document.createElement("br"));
+    uploadImage.addEventListener(
+        "change", () => {
+            console.log("image uploaded");
+            const reader = new FileReader();
+            reader.onload = e => {
+                im.src = e.target.result;
+            }
+            let loadImageToPotentialFunc = () => {
+                let ctx = imCanvas.getContext("2d");
+                let width = Module.get_int_param(ENUM_CODES[w_code]);
+                let height = Module.get_int_param(ENUM_CODES[h_code]);
+                let imW = im.width;
+                let imH = im.height;
+                imCanvas.setAttribute("width", width);
+                imCanvas.setAttribute("height", height);
+                let heightOffset = 0;
+                let widthOffset = 0;
+                if (imW/imH >= width/height) {
+                    let ratio = (imW/imH)/(width/height);
+                    widthOffset = parseInt(0.5*width*(1.0 - ratio));
+                    ctx.drawImage(im, widthOffset, heightOffset,
+                                width*(imW/imH)/(width/height), height);
+                } else {
+                    let ratio = (imH/imW)/(height/width);
+                    heightOffset = parseInt(0.5*height*(1.0 - ratio));
+                    ctx.drawImage(im, widthOffset, heightOffset,
+                                width, (imH/imW)/(height/width)*height);
+                }
+                let data = ctx.getImageData(0, 0, width, height).data;
+                Module.image_set(
+                    enumCode, data, width, height);
+            }
+            let promiseFunc = () => {
+                if (im.width === 0 && im.height === 0) {
+                    let p = new Promise(() => setTimeout(promiseFunc, 10));
+                    return Promise.resolve(p);
+                } else {
+                    loadImageToPotentialFunc();
+                }
+            }
+            reader.onloadend = () => {
+                let p = new Promise(() => setTimeout(promiseFunc, 10));
+                Promise.resolve(p);
+            }
+            reader.readAsDataURL(uploadImage.files[0]);
+        }
+    );
+}
+
 let gUserParams = {};
 
 function modifyUserSliders(enumCode, variableList) {
@@ -255,12 +358,17 @@ createLabel(controls, 14, "Reset parameters", "color:white; font-family:Arial, H
 createLabel(controls, 15, "(Press the 'Reset simulation' button for changes to take effect.)", "");
 createScalarParameterSlider(controls, 16, "Energy eigenstates count", "int", {'value': 16, 'min': 1, 'max': 256});
 createSelectionList(controls, 17, 1, "Laplacian discretization", [ "2nd order 5 pt.",  "4th order 9 pt."]);
+createScalarParameterSlider(controls, 18, "Grid width", "int", {'value': 128, 'min': 32, 'max': 256});
+createScalarParameterSlider(controls, 19, "Grid height", "int", {'value': 128, 'min': 32, 'max': 256});
 createScalarParameterSlider(controls, 20, "Mass (a.u.)", "float", {'value': 1.0, 'min': 0.2, 'max': 10.0, 'step': 0.01});
 createButton(controls, 21,  "Reset simulation", "color:black; font-family:Arial, Helvetica, sans-serif; font-weight: bold;");
 createLineDivider(controls);
-createSelectionList(controls, 23, 0, "Preset V(x, y)", [ "x^2 + y^2",  "5*(x^2 + y^2)/2",  "sqrt(x^2 + y^2)",  "abs(x)",  "x^4 + y^4",  "(x+3/2)^2*(x-3/2)^2",  "5-5*exp(-(x^2+y^2)/9)",  "9-9*exp(-(x^2+y^2)/4)",  "-10*exp(-(x^2+y^2)/4)",  "Finite circular well",  "Heart",  "Triangle",  "Four overlapping wells",  "log(sqrt(x^2+y^2))",  "-log(sqrt(x^2+y^2))",  "-1/(sqrt(x^2+y^2))",  "1/(sqrt(x^2+y^2))"]);
+createSelectionList(controls, 23, 0, "Preset V(x, y)", [ "x^2 + y^2",  "5*(x^2 + y^2)/2",  "sqrt(x^2 + y^2)",  "abs(x)",  "x^4 + y^4",  "(x+3/2)^2*(x-3/2)^2",  "-10*exp(-(x^2+y^2)/4)",  "Finite circular well",  "Heart",  "Triangle",  "Pentagon",  "Hexagon",  "Octagon",  "Four overlapping wells",  "log(sqrt(x^2+y^2))",  "-log(sqrt(x^2+y^2))",  "-1/(sqrt(x^2+y^2))",  "1/(sqrt(x^2+y^2))"]);
 createEntryBoxes(controls, 24, "Text edit V(x, y)", 1, []);
 createButton(controls, 25, "Enter modified potential");
 createLabel(controls, 26, "-5 a.u. ≤ x < 5 a.u.", "");
 createLabel(controls, 27, "-5 a.u. ≤ y < 5 a.u.", "");
+createSelectionList(controls, 28, 0, "Boundary conditions", [ "V=+oo beyond boundaries"]);
+createUploadImage(controls, 29, "Set V(x, y) using image", "GRID_WIDTH", "GRID_HEIGHT");
+createLabel(controls, 30, "(May look pixelated unless image dimensions are approximately equal to the simulation's grid size.)", "");
 

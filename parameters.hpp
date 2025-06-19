@@ -7,6 +7,8 @@ namespace sim_2d {
 
 struct Button {};
 
+struct UploadImage {};
+
 typedef std::string Label;
 
 typedef bool BoolRecord;
@@ -18,11 +20,11 @@ struct SelectionList {
     std::vector<std::string> options;
 };
 
-struct SimParams {
-
 struct LineDivider {};
 
 struct NotUsed {};
+
+struct SimParams {
     int stepsPerFrame = (int)(1);
     float brightness = (float)(0.15F);
     float t = (float)(0.0F);
@@ -46,11 +48,14 @@ struct NotUsed {};
     float m = (float)(1.0F);
     Button simResetButton = Button{};
     LineDivider lineDivider2 = LineDivider{};
-    SelectionList presetPotential = SelectionList{0, {"x^2 + y^2", "5*(x^2 + y^2)/2", "sqrt(x^2 + y^2)", "abs(x)", "x^4 + y^4", "(x+3/2)^2*(x-3/2)^2", "5-5*exp(-(x^2+y^2)/9)", "9-9*exp(-(x^2+y^2)/4)", "-10*exp(-(x^2+y^2)/4)", "Finite circular well", "Heart", "Triangle", "Four overlapping wells", "log(sqrt(x^2+y^2))", "-log(sqrt(x^2+y^2))", "-1/(sqrt(x^2+y^2))", "1/(sqrt(x^2+y^2))"}};
+    SelectionList presetPotential = SelectionList{0, {"x^2 + y^2", "5*(x^2 + y^2)/2", "sqrt(x^2 + y^2)", "abs(x)", "x^4 + y^4", "(x+3/2)^2*(x-3/2)^2", "-10*exp(-(x^2+y^2)/4)", "Finite circular well", "Heart", "Triangle", "Pentagon", "Hexagon", "Octagon", "Four overlapping wells", "log(sqrt(x^2+y^2))", "-log(sqrt(x^2+y^2))", "-1/(sqrt(x^2+y^2))", "1/(sqrt(x^2+y^2))"}};
     EntryBoxes scalarPotential = EntryBoxes{"0"};
     Button enterScalarPotential = Button{};
     Label xRangeLabel = Label{};
     Label yRangeLabel = Label{};
+    SelectionList boundaryConditions = SelectionList{0, {"V=+oo beyond boundaries"}};
+    UploadImage imagePotential = UploadImage{};
+    Label imagePotentialLabel = Label{};
     enum {
         STEPS_PER_FRAME=0,
         BRIGHTNESS=1,
@@ -80,6 +85,9 @@ struct NotUsed {};
         ENTER_SCALAR_POTENTIAL=25,
         X_RANGE_LABEL=26,
         Y_RANGE_LABEL=27,
+        BOUNDARY_CONDITIONS=28,
+        IMAGE_POTENTIAL=29,
+        IMAGE_POTENTIAL_LABEL=30,
     };
     void set(int enum_val, Uniform val) {
         switch(enum_val) {
@@ -186,6 +194,9 @@ struct NotUsed {};
             break;
             case Y_RANGE_LABEL:
             yRangeLabel = val;
+            break;
+            case IMAGE_POTENTIAL_LABEL:
+            imagePotentialLabel = val;
             break;
         }
     }

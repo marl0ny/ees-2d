@@ -46,7 +46,6 @@ void display_parameters_as_sliders(int c, std::map<std::string, double> m) {
     #endif
 }
 
-
 void ees_2d(
     MainGLFWQuad main_render,
     sim_2d::SimParams &params,
@@ -130,6 +129,13 @@ void ees_2d(
             );
         }
 
+    };
+    s_image_set
+        = [&params, &sim](
+            int c, 
+            const std::string &image_data, int width, int height) {
+        sim.set_potential_from_image(params, (uint8_t *)&image_data[0],
+        {.ind{width, height}});
     };
     std::vector<Vec2> start_position {};
     std::vector<Vec2> curr_position {};
