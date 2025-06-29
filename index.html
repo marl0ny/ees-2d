@@ -15,7 +15,7 @@
                 <div style="overflow-y: scroll; max-height: 700px;" id="controls"></div>
             </div>
             <div style="grid-column: 2;">
-                <h2 style="color:white; font-size:16px; text-align: center;">Interactive Single-Particle Quantum Mechanics Simulation in 2D</h2>
+                <h2 style="color:white; font-size:16px; text-align: center;">An Interactive Single-Particle Quantum Mechanics Simulation in 2D</h2>
                 <canvas id="canvas" oncontextmenu="event.preventDefault()"
                     style="touch-action: none; 
                         border: solid white 1px; top: 0px; bottom: 0px;
@@ -24,20 +24,20 @@
                 <br>
                 <div style="overflow-y: scroll; max-height: 100px;" id="controls">
                     <p style="color:white; font-size:14px;">This simulation works by approximating the position space Hamiltonian H of the quantum system using a uniform finite difference grid,
-                        where its energy eigenstates |n> and eigenvalues Eₙ are subsequently solved for. From here the quantum system's wave function |ψ> is expressed as a linear combination of these energy eigenstates |n>,
+                        where its energy eigenstates |n> and eigenvalues Eₙ are subsequently solved for. From here the quantum system's (numerically approximated) wave function |ψ> is expressed as a linear combination of these energy eigenstates |n>,
                         where
                     </p>
                         <div style="color:white; align-items:center; justify-content: center;">
                         |ψ(0)> = Σₙ cₙ|n>, and <br>  |ψ(t)> = Σₙ cₙ(t)|n> = Σₙ cₙ exp(-iEₙt/ħ)|n>.
                         </div>
                     <p style="color:white; font-size:14px;">
-                        Here t is the time elapsed, and
+                        Here t is the time elapsed in the simulation, and
                         the cₙ(t) are complex-valued coefficients, where they are visually represented using circular "clock face" sliders that can be interactively modified in real time by the user. The lengths for each of these circular
                         sliders are proportional to |cₙ(t)|, and their angular offsets are the same as the phase factor -Eₙt/ħ.
                     </p>
                     <p style="color:white; font-size:14px;">
                         This interactive simulation is primarily based on Paul Falstad's various <a href="https://www.falstad.com/qm2dosc/">quantum mechanics apps</a>. Some additional inspiration comes from Daniel Schroeder's <a href="https://physics.weber.edu/schroeder/software/HarmonicOscillator.html">quantum mechanics programs</a>.
-                        Computations for obtaining the eigenvectors and eigenvalues of the numerically-approximated Hamiltonian matrix are found using <a href="https://eigen.tuxfamily.org/index.php?title=Main_Page">Eigen</a> and <a href="https://spectralib.org/">Spectra</a>. Both are licensed under the <a href="https://www.mozilla.org/en-US/MPL/2.0/">MPL2</a>.
+                        Computations for obtaining the eigenvectors and eigenvalues of the numerically approximated Hamiltonian matrix are found using <a href="https://eigen.tuxfamily.org/index.php?title=Main_Page">Eigen</a> and <a href="https://spectralib.org/">Spectra</a>. Both are licensed under the <a href="https://www.mozilla.org/en-US/MPL/2.0/">MPL2</a>.
                     </p>
                 </div>
                 <!--<p style="color:white; font-size:14px; text-align: center;">

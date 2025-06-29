@@ -68,7 +68,7 @@ void imgui_controls(void *void_params) {
     ImGui::Checkbox("Colour phase", &params->colorPhase);
     ImGui::Checkbox("3D plot", &params->show3D);
     ImGui::Text("Plot heights");
-    if (ImGui::SliderFloat("heightScales[0]", &params->heightScales.ind[0], 0.0, 10.0))
+    if (ImGui::SliderFloat("heightScales[0]", &params->heightScales.ind[0], 0.0, 15.0))
            s_sim_params_set(params->HEIGHT_SCALES, params->heightScales);
     if (ImGui::SliderFloat("heightScales[1]", &params->heightScales.ind[1], 0.0, 10.0))
            s_sim_params_set(params->HEIGHT_SCALES, params->heightScales);
@@ -122,14 +122,16 @@ void imgui_controls(void *void_params) {
             s_selection_set(params->PRESET_POTENTIAL, 12);
         if (ImGui::MenuItem( "Four overlapping wells"))
             s_selection_set(params->PRESET_POTENTIAL, 13);
-        if (ImGui::MenuItem( "log(sqrt(x^2+y^2))"))
+        if (ImGui::MenuItem( "Window"))
             s_selection_set(params->PRESET_POTENTIAL, 14);
-        if (ImGui::MenuItem( "-log(sqrt(x^2+y^2))"))
+        if (ImGui::MenuItem( "log(sqrt(x^2+y^2))"))
             s_selection_set(params->PRESET_POTENTIAL, 15);
-        if (ImGui::MenuItem( "-1/(sqrt(x^2+y^2))"))
+        if (ImGui::MenuItem( "-log(sqrt(x^2+y^2))"))
             s_selection_set(params->PRESET_POTENTIAL, 16);
-        if (ImGui::MenuItem( "1/(sqrt(x^2+y^2))"))
+        if (ImGui::MenuItem( "-1/(sqrt(x^2+y^2))"))
             s_selection_set(params->PRESET_POTENTIAL, 17);
+        if (ImGui::MenuItem( "1/(sqrt(x^2+y^2))"))
+            s_selection_set(params->PRESET_POTENTIAL, 18);
         ImGui::EndMenu();
     }
     ImGui::Text("-5 a.u. ≤ x < 5 a.u.");

@@ -58,6 +58,7 @@ class Simulation {
     void use_pentagon_potential(const sim_2d::SimParams &params);
     void use_octagon_potential(const sim_2d::SimParams &params);
     void use_hexagon_potential(const sim_2d::SimParams &params);
+    void use_window_potential(const sim_2d::SimParams &params);
     void update_potential_tex();
     public:
     Simulation(int window_width, int window_height, sim_2d::SimParams params);

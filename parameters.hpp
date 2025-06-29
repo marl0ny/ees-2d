@@ -41,14 +41,14 @@ struct SimParams {
     LineDivider lineDivider1 = LineDivider{};
     Label simResetLabel = Label{};
     Label simResetLabelSubtext = Label{};
-    int numberOfStates = (int)(16);
+    int numberOfStates = (int)(25);
     SelectionList laplacianStencil = SelectionList{1, {"2nd order 5 pt.", "4th order 9 pt."}};
     int gridWidth = (int)(128);
     int gridHeight = (int)(128);
     float m = (float)(1.0F);
     Button simResetButton = Button{};
     LineDivider lineDivider2 = LineDivider{};
-    SelectionList presetPotential = SelectionList{0, {"x^2 + y^2", "5*(x^2 + y^2)/2", "sqrt(x^2 + y^2)", "abs(x)", "x^4 + y^4", "(x+3/2)^2*(x-3/2)^2", "-10*exp(-(x^2+y^2)/4)", "Finite circular well", "Heart", "Triangle", "Pentagon", "Hexagon", "Octagon", "Four overlapping wells", "log(sqrt(x^2+y^2))", "-log(sqrt(x^2+y^2))", "-1/(sqrt(x^2+y^2))", "1/(sqrt(x^2+y^2))"}};
+    SelectionList presetPotential = SelectionList{0, {"x^2 + y^2", "5*(x^2 + y^2)/2", "sqrt(x^2 + y^2)", "abs(x)", "x^4 + y^4", "(x+3/2)^2*(x-3/2)^2", "-10*exp(-(x^2+y^2)/4)", "Finite circular well", "Heart", "Triangle", "Pentagon", "Hexagon", "Octagon", "Four overlapping wells", "Window", "log(sqrt(x^2+y^2))", "-log(sqrt(x^2+y^2))", "-1/(sqrt(x^2+y^2))", "1/(sqrt(x^2+y^2))"}};
     EntryBoxes scalarPotential = EntryBoxes{"0"};
     Button enterScalarPotential = Button{};
     Label xRangeLabel = Label{};

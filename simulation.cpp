@@ -81,17 +81,7 @@ Frames::Frames(
     }),
     main_render(main_view_tex_params),
     wave_func(sim_tex_params),
-    potential(
-        {
-            .format=GL_RGBA32F, 
-            .width=sim_tex_params.width,
-            .height=sim_tex_params.height,
-            .wrap_s=GL_CLAMP_TO_EDGE,
-            .wrap_t=GL_CLAMP_TO_EDGE,
-            .min_filter=GL_LINEAR,
-            .mag_filter=GL_LINEAR,
-        }
-    ),
+    potential(sim_tex_params),
     coefficients(
         {
             .format=GL_RG32F, 
@@ -197,6 +187,7 @@ void Simulation::compute_new_energies(const sim_2d::SimParams &params) {
         params.gridHeight != this->m_potential.rows()) {
         m_wave_function = Eigen::VectorXcf(params.gridWidth*params.gridHeight);
         m_potential = Eigen::MatrixXd(params.gridHeight, params.gridWidth);
+        // this->m_frames.
         m_frames.sim_tex_params.width = params.gridWidth;
         m_frames.sim_tex_params.height = params.gridHeight;
         m_frames.wave_func.reset(m_frames.sim_tex_params);
@@ -286,7 +277,7 @@ void Simulation::use_double_slit_potential(const sim_2d::SimParams &params) {
 
 void Simulation::use_heart_potential(const sim_2d::SimParams &params) {
     double size = 1.4;
-    double height = 5.0;
+    double height = 10.0;
     double edge_sharpness = 50.0;
     for (int i = 0; i < params.gridHeight; i++) {
         for (int j = 0; j < params.gridWidth; j++) {
@@ -316,7 +307,7 @@ void Simulation::use_triangle_potential(const sim_2d::SimParams &params) {
             if (y < l1 && y < l2 && y > l3)
                 m_potential(i, j) = 0.0;
             else
-                m_potential(i, j) = 5.0;
+                m_potential(i, j) = 10.0;
         }
     }
     this->update_potential_tex();
@@ -361,6 +352,28 @@ void Simulation::use_hexagon_potential(const sim_2d::SimParams &params) {
                 m_potential(i, j) = 0.0;
             else
                 m_potential(i, j) = 10.0;
+        }
+    }
+    this->update_potential_tex();
+    this->compute_new_energies(params);
+}
+
+void Simulation::use_window_potential(const sim_2d::SimParams &params) {
+     for (int i = 0; i < params.gridHeight; i++) {
+        for (int j = 0; j < params.gridWidth; j++) {
+            double x = ((double)j + 0.5)/(double)params.gridWidth;
+            double y = ((double)i + 0.5)/(double)params.gridHeight;
+            double val;
+            if ((x > 0.1 && x < 0.45 && y > 0.1 && y < 0.45) 
+                || (x > 0.55 && x < 0.9 && y > 0.1 && y < 0.45) 
+                || (x > 0.55 && x < 0.9 && y > 0.55 && y < 0.9) 
+                || (x > 0.1 && x < 0.45 && y > 0.55 && y < 0.9)
+                ) {
+                val = 0.0;
+            } else {
+                val = 4.0;
+            }
+            m_potential(i, j) = val;
         }
     }
     this->update_potential_tex();
@@ -515,12 +528,12 @@ void Simulation::approximate_wavepacket(
 }
 
 void Simulation::update_potential_tex() {
-    std::vector<Vec4> tmp(
+    std::vector<Vec2> tmp(
         m_frames.sim_tex_params.width*m_frames.sim_tex_params.height);
     for (int i = 0; i < m_frames.sim_tex_params.height; i++)
         for (int j = 0; j < m_frames.sim_tex_params.width; j++)
             tmp[i*m_frames.sim_tex_params.width + j] 
-                = {.r=(float)m_potential(i, j), .g=0.0, .b=0.0, .a=1.0};
+                = {.x=(float)m_potential(i, j), .y=0.0};
     this->m_frames.potential.set_pixels((float *)&tmp[0]);
 }
 
@@ -659,13 +672,15 @@ void Simulation::set_preset_potential(
         this->use_octagon_potential(params);
     else if (val == "Four overlapping wells")
         this->set_potential_from_string(params,
-            "-20*("
+            "-18*("
             " exp(-0.5*((x+2.5)^2+y^2)/1.45)"
             "+exp(-0.5*((x-2.5)^2+y^2)/1.45)"
             "+exp(-0.5*(x^2+(y-2.5)^2)/1.45)"
             "+exp(-0.5*(x^2+(y+2.5)^2)/1.45)"
             ")",
             {});
+    else if (val == "Window")
+        this->use_window_potential(params);
     else
         this->set_potential_from_string(params, val, {});
 
