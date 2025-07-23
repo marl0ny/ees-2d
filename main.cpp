@@ -164,13 +164,15 @@ void ees_2d(
                 cursor_pos1.x = cursor_pos1.x/(1.0/2.25);
                 cursor_pos2.x = cursor_pos2.x/(1.0/2.25);
                 if (params.show3D) {
-                    Vec2 delta_2d = interactor.get_mouse_delta();
-                    Vec3 delta {.ind={delta_2d[0], delta_2d[1], 0.0}};
-                    Vec3 view_vec {.ind={0.0, 0.0, -1.0}};
-                    Vec3 axis = cross_product(delta, view_vec);
-                    Quaternion rot = Quaternion::rotator(
-                        3.0*axis.length(), axis);
-                    rotation = rotation*rot;
+                    if (curr_position.size() > 1) {
+                        Vec2 delta_2d = interactor.get_mouse_delta();
+                        Vec3 delta {.ind={delta_2d[0], delta_2d[1], 0.0}};
+                        Vec3 view_vec {.ind={0.0, 0.0, -1.0}};
+                        Vec3 axis = cross_product(delta, view_vec);
+                        Quaternion rot = Quaternion::rotator(
+                            3.0*axis.length(), axis);
+                        rotation = rotation*rot;
+                    }
                 } else {
                     sim.approximate_wavepacket(
                         params, cursor_pos1, cursor_pos2);
