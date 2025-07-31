@@ -20,7 +20,8 @@ struct Frames {
     WireFrame surface;
     Frames(
         int window_width, int window_height,
-        int sim_width, int sim_height, 
+        int sim_width, int sim_height,
+        unsigned int filter_type,
         int n_states);
     void reset(int sim_width, int sim_height);
     void reset(int n_states);
@@ -61,7 +62,8 @@ class Simulation {
     void use_window_potential(const sim_2d::SimParams &params);
     void update_potential_tex();
     public:
-    Simulation(int window_width, int window_height, sim_2d::SimParams params);
+    Simulation(int window_width, int window_height, unsigned int filter_type,
+               sim_2d::SimParams params);
     void compute_new_energies(
         const sim_2d::SimParams &params);
     // void compute_new_

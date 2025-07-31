@@ -11,6 +11,7 @@
 #include <emscripten/bind.h>
 #endif
 #include <functional>
+#include <utility>
 
 #include "wasm_wrappers.hpp"
 
@@ -49,10 +50,11 @@ void display_parameters_as_sliders(int c, std::map<std::string, double> m) {
 void ees_2d(
     MainGLFWQuad main_render,
     sim_2d::SimParams &params,
-    int window_width, int window_height) {
+    int window_width, int window_height,
+    unsigned int filter_type) {
     // test_shunting_yard();
     Interactor interactor(main_render.get_window());
-    Simulation sim(window_width, window_height, params);
+    Simulation sim(window_width, window_height, filter_type, params);
     sim_2d::SimParams modified_params {};
     std::map<std::string, double> all_seen_variables {};
     Quaternion rotation = Quaternion{.i=0.0, .j=0.0, .k=0.0, .real=1.0};
@@ -139,6 +141,8 @@ void ees_2d(
     };
     std::vector<Vec2> start_position {};
     std::vector<Vec2> curr_position {};
+    std::vector<std::pair<Vec2, Vec2>> start_double_touches {};
+    std::vector<std::pair<Vec2, Vec2>> curr_double_touches {};
     s_loop = [&] {
         for (int i = 0; i < params.stepsPerFrame; i++)
             sim.time_step(params);
@@ -179,6 +183,7 @@ void ees_2d(
                 }
             }
         }
+        // printf("Scroll value: %f\n", 0.5*Interactor::get_scroll());
         main_render.draw(sim.view(params, 
             rotation, 0.5*Interactor::get_scroll()));
         auto poll_events = [&] {
@@ -197,6 +202,63 @@ void ees_2d(
                     curr_position.clear();
                 }
             }
+            Vec2 double_touches[2];
+            double_touches[0] = interactor.get_double_touch_position(0);
+            double_touches[1] = interactor.get_double_touch_position(1);
+            if (interactor.double_touch_active()
+                && double_touches[0].x > 0.0 && double_touches[0].x < 1.0
+                && double_touches[0].y > 0.0 && double_touches[0].y < 1.0
+                && double_touches[1].x > 0.0 && double_touches[1].x < 1.0
+                && double_touches[1].y > 0.0 && double_touches[1].y < 1.0) {
+                // params.colorPhase = false;
+                if (start_double_touches.empty())
+                    start_double_touches.push_back(
+                        {double_touches[0], double_touches[1]});
+                curr_double_touches.push_back(
+                        {double_touches[0], double_touches[1]});
+                if (params.show3D && curr_double_touches.size() > 1) {
+                    std::pair<Vec2, Vec2> delta01
+                            = {
+                                interactor.get_double_touch_delta(0),
+                                interactor.get_double_touch_delta(1)
+                            };
+                    auto curr01 
+                        = curr_double_touches[
+                            curr_double_touches.size() - 1];
+                    auto prev01 
+                        = curr_double_touches[
+                            curr_double_touches.size() - 2];
+                    Vec2 dist_curr = curr01.second - curr01.first;
+                    Vec2 dist_prev = prev01.second - prev01.first;
+                    double curr_length = dist_curr.length();
+                    double prev_length = dist_prev.length();
+                    double scale_val = curr_length/prev_length;
+                    Interactor::multiply_scroll_value(scale_val);
+                    Vec2 mid = (curr01.second + curr01.first)/2.0;
+                    Vec2 rad1 = (curr01.first - mid);
+                    Vec2 rad2 = (curr01.second - mid);
+                    Vec3 axis1 = cross_product(
+                        Vec3{.x=delta01.first.x/rad1.length(),
+                             .y=delta01.first.y/rad1.length(),
+                             .z=0.0},
+                        Vec3{.x=rad1.x, .y=rad1.y, .z=0.0}.normalized());
+                    Vec3 axis2 = cross_product(
+                        Vec3{.x=delta01.second.x/rad2.length(), 
+                             .y=delta01.second.y/rad2.length(),
+                             .z=0.0},
+                        Vec3{.x=rad2.x, .y=rad2.y, .z=0.0}.normalized());
+                    Quaternion rot = Quaternion::rotator(
+                        0.33*(axis1 + axis2).length(), axis1 + axis2);
+                    rotation = rotation*rot;
+                }
+            }
+            if (interactor.double_touch_released()) {
+                // params.colorPhase = true;
+                if (!start_double_touches.empty()) {
+                    start_double_touches.pop_back();
+                    curr_double_touches.clear();
+                }
+            }
         };
         poll_events();
         glfwSwapBuffers(main_render.get_window());
@@ -212,17 +274,22 @@ void ees_2d(
 
 int main(int argc, char *argv[]) {
     int window_width = 2304, window_height = 1024;
-
+    int filter_type = GL_LINEAR;
     // Construct the main window quad
     if (argc >= 3) {
         window_width = std::atoi(argv[1]);
         window_height = std::atoi(argv[2]);
+    }
+    if (argc >= 4) {
+        std::string s(argv[3]);
+        if (s == "nearest")
+            filter_type = GL_NEAREST;
     }
     auto main_quad = MainGLFWQuad(window_width, window_height);
     // UserEditGLSLProgram glsl_potential_edit {};
     sim_2d::SimParams sim_params {};
     ees_2d(
         main_quad, sim_params,
-        window_width, window_height);
+        window_width, window_height, filter_type);
     return 1;
 }

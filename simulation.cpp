@@ -60,15 +60,15 @@ static IVec2 get_closest_larger_square(unsigned int n) {
 
 Frames::Frames(
     int window_width, int window_height,
-    int sim_width, int sim_height, int n_states) :
+    int sim_width, int sim_height, unsigned int filter_type, int n_states) :
     main_view_tex_params({
         .format=GL_RGBA16F, 
         .width=(uint32_t)window_width,
         .height=(uint32_t)window_height,
         .wrap_s=GL_CLAMP_TO_EDGE,
         .wrap_t=GL_CLAMP_TO_EDGE,
-        .min_filter=GL_LINEAR,
-        .mag_filter=GL_LINEAR,
+        .min_filter=filter_type,
+        .mag_filter=filter_type,
     }),
     sim_tex_params({
         .format=GL_RG32F, 
@@ -76,8 +76,8 @@ Frames::Frames(
         .height=(uint32_t)sim_height,
         .wrap_s=GL_CLAMP_TO_EDGE,
         .wrap_t=GL_CLAMP_TO_EDGE,
-        .min_filter=GL_LINEAR,
-        .mag_filter=GL_LINEAR,
+        .min_filter=filter_type,
+        .mag_filter=filter_type,
     }),
     main_render(main_view_tex_params),
     wave_func(sim_tex_params),
@@ -91,8 +91,8 @@ Frames::Frames(
             .height=(uint32_t)get_closest_larger_square(n_states)[1],
             .wrap_s=GL_CLAMP_TO_EDGE,
             .wrap_t=GL_CLAMP_TO_EDGE,
-            .min_filter=GL_LINEAR,
-            .mag_filter=GL_LINEAR,
+            .min_filter=filter_type,
+            .mag_filter=filter_type,
         }
     ),
     coefficients_tmp(
@@ -104,8 +104,8 @@ Frames::Frames(
             .height=(uint32_t)get_closest_larger_square(n_states)[1],
             .wrap_s=GL_CLAMP_TO_EDGE,
             .wrap_t=GL_CLAMP_TO_EDGE,
-            .min_filter=GL_LINEAR,
-            .mag_filter=GL_LINEAR,
+            .min_filter=filter_type,
+            .mag_filter=filter_type,
         }
     ),
     energies({
@@ -114,8 +114,8 @@ Frames::Frames(
             .width=(uint32_t)n_states, .height=1,
             .wrap_s=GL_REPEAT,
             .wrap_t=GL_REPEAT,
-            .min_filter=GL_LINEAR,
-            .mag_filter=GL_LINEAR
+            .min_filter=filter_type,
+            .mag_filter=filter_type
         }
     }),
     circles(get_circles_wireframe(
@@ -135,6 +135,8 @@ Frames::Frames(
     {}
 
 void Frames::reset(int n_states) {
+    unsigned int mag_filter = this->sim_tex_params.mag_filter;
+    unsigned int min_filter = this->sim_tex_params.min_filter;
     this->coefficients.reset(
         {
             .format=GL_RG32F, 
@@ -144,8 +146,8 @@ void Frames::reset(int n_states) {
             .height=(uint32_t)get_closest_larger_square(n_states)[1],
             .wrap_s=GL_CLAMP_TO_EDGE,
             .wrap_t=GL_CLAMP_TO_EDGE,
-            .min_filter=GL_LINEAR,
-            .mag_filter=GL_LINEAR,
+            .min_filter=min_filter,
+            .mag_filter=mag_filter,
         }
     );
     this->coefficients_tmp.reset(
@@ -157,8 +159,8 @@ void Frames::reset(int n_states) {
             .height=(uint32_t)get_closest_larger_square(n_states)[1],
             .wrap_s=GL_CLAMP_TO_EDGE,
             .wrap_t=GL_CLAMP_TO_EDGE,
-            .min_filter=GL_LINEAR,
-            .mag_filter=GL_LINEAR,
+            .min_filter=min_filter,
+            .mag_filter=mag_filter,
         }
     ),
     this->energies.reset(
@@ -167,8 +169,8 @@ void Frames::reset(int n_states) {
             .width=(uint32_t)n_states, .height=1,
             .wrap_s=GL_REPEAT,
             .wrap_t=GL_REPEAT,
-            .min_filter=GL_LINEAR,
-            .mag_filter=GL_LINEAR
+            .min_filter=min_filter,
+            .mag_filter=mag_filter
         }
     );
     this->circles = get_circles_wireframe(
@@ -594,11 +596,13 @@ void Simulation::set_potential_from_image(
     this->update_potential_tex();
 }
 
-Simulation::Simulation(int window_width, int window_height, sim_2d::SimParams params):
+Simulation::Simulation(int window_width, int window_height, 
+                       unsigned int filter_type, sim_2d::SimParams params):
     m_programs(),
     m_frames(
         window_width, window_height, 
-        params.gridWidth, params.gridHeight, params.numberOfStates) {
+        params.gridWidth, params.gridHeight, 
+        filter_type, params.numberOfStates) {
     this->config_at_start(params);
 }
 

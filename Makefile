@@ -34,7 +34,7 @@ ${TARGET}: ${OBJECTS}
 	${CPP_COMPILE} ${FLAGS} -o $@ ${OBJECTS} ${LIBS}
 
 ${WEB_TARGET}: ${SOURCES} ${GENERATED_DEPENDENCIES}
-	emcc -lembind -o $@ ${SOURCES} ${INCLUDE} -std=c++17 -O3 -v -s WASM=2 -s USE_GLFW=3 -s FULL_ES3=1 \
+	emcc -lembind -o $@ ${SOURCES} ${INCLUDE} -std=c++17 -O3 -v -s WASM=2 -s USE_GLFW=3 -s MAX_WEBGL_VERSION=2 \
 	-s ALLOW_MEMORY_GROWTH=1 -s LLD_REPORT_UNDEFINED --embed-file shaders
 
 ${OBJECTS}: ${CPP_SOURCES} ${GENERATED_DEPENDENCIES}
